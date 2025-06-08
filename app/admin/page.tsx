@@ -9,16 +9,20 @@ import BusinessHoursManager from '@/components/BusinessHoursManager'
 
 interface QueueItem {
   id: string
-  type: 'appointment' | 'walk-in'
-  userId: string
-  time: string
-  patient?: {
-    name: string
-    phone?: string
-    email?: string
-  }
+  ticket_id: string
+  type: 'appointment' | 'walk_in'
+  name: string
+  phone?: string
+  email?: string
+  queue_time: string
   status: string
-  position: number
+  scheduled_time?: string
+  check_in_time?: string
+  original_appointment_id?: string
+  position?: number
+  estimatedWait?: string
+  isNowServing?: boolean
+  isNext?: boolean
 }
 
 interface AdminSession {
@@ -92,11 +96,11 @@ export default function AdminDashboard() {
       
       const data = await response.json()
       
-      if (data.success) {
+      if (data.success && data.queue) {
         setQueueState({
-          currentlyServing: data.currentlyServing || null,
-          queue: Array.isArray(data.queue) ? data.queue : [],
-          totalWaiting: data.totalWaiting || 0,
+          currentlyServing: data.queue.nowServing || null,
+          queue: Array.isArray(data.queue.current) ? data.queue.current : [],
+          totalWaiting: data.queue.totalInQueue || 0,
           lastUpdated: new Date().toISOString()
         })
       } else {
@@ -335,14 +339,16 @@ export default function AdminDashboard() {
             {queueState.currentlyServing ? (
               <div className="space-y-2">
                 <div className="text-2xl font-bold text-blue-600">
-                  {queueState.currentlyServing.type === 'appointment' ? 'APT' : 'WLK'}
-                  {queueState.currentlyServing.position || '1'}
+                  {queueState.currentlyServing.ticket_id}
+                </div>
+                <div className="text-sm font-medium text-gray-900">
+                  {queueState.currentlyServing.name}
                 </div>
                 <div className="text-sm text-gray-600">
-                  {formatDate(queueState.currentlyServing.time)} at {formatTime(queueState.currentlyServing.time)}
+                  {formatDate(queueState.currentlyServing.queue_time)} at {formatTime(queueState.currentlyServing.queue_time)}
                 </div>
                 <div className="text-sm text-gray-500">
-                  ID: {queueState.currentlyServing.id.slice(0, 8)}...
+                  {queueState.currentlyServing.type === 'appointment' ? 'Appointment' : 'Walk-in'}
                 </div>
               </div>
             ) : (
@@ -429,18 +435,21 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {patient.type === 'appointment' ? 'Appointment' : 'Walk-in'} #{patient.position || index + 1}
+                            {patient.ticket_id}
                             {index === 0 && (
                               <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                 Next
                               </span>
                             )}
                           </div>
+                          <div className="text-sm font-medium text-gray-700">
+                            {patient.name}
+                          </div>
                           <div className="text-sm text-gray-600">
-                            {formatDate(patient.time)} at {formatTime(patient.time)}
+                            {formatDate(patient.queue_time)} at {formatTime(patient.queue_time)}
                           </div>
                           <div className="text-xs text-gray-500">
-                            ID: {patient.id.slice(0, 8)}... | Status: {patient.status}
+                            {patient.type === 'appointment' ? 'Appointment' : 'Walk-in'} | Status: {patient.status}
                           </div>
                         </div>
                       </div>
@@ -448,11 +457,11 @@ export default function AdminDashboard() {
                       <div className="flex items-center space-x-2">
                         {patient.status !== 'arrived' && (
                           <button
-                            onClick={() => markAsArrived(patient.id, patient.type)}
-                            disabled={actionLoading === `mark-${patient.id}`}
+                            onClick={() => markAsArrived(patient.ticket_id, patient.type)}
+                            disabled={actionLoading === `mark-${patient.ticket_id}`}
                             className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-3 py-1 rounded text-sm font-medium transition-colors"
                           >
-                            {actionLoading === `mark-${patient.id}` ? (
+                            {actionLoading === `mark-${patient.ticket_id}` ? (
                               <span className="flex items-center">
                                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
                                 ...
