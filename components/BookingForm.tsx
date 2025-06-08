@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Calendar } from './Calendar'
 import { TimeSlotPicker } from './TimeSlotPicker'
 import { User, Phone, Mail, Calendar as CalendarIcon, Clock, Check, AlertCircle, Loader2 } from 'lucide-react'
@@ -71,6 +71,11 @@ export function BookingForm({ onBookingComplete, onSubmit, isSubmitting = false,
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<'info' | 'datetime' | 'confirm'>('info')
 
+  // Clear errors when component mounts or step changes
+  useEffect(() => {
+    setErrors(prev => ({ ...prev, submit: undefined }))
+  }, [step])
+
   // Form validation
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
@@ -136,17 +141,13 @@ export function BookingForm({ onBookingComplete, onSubmit, isSubmitting = false,
       handleInputChange('time', null)
     }
     // Clear any submission errors when date changes
-    if (errors.submit) {
-      setErrors(prev => ({ ...prev, submit: undefined }))
-    }
+    setErrors(prev => ({ ...prev, submit: undefined }))
   }
 
   const handleTimeSelect = (time: string) => {
     handleInputChange('time', time)
     // Clear any submission errors when time changes
-    if (errors.submit) {
-      setErrors(prev => ({ ...prev, submit: undefined }))
-    }
+    setErrors(prev => ({ ...prev, submit: undefined }))
   }
 
   const handleNextStep = () => {
@@ -170,9 +171,9 @@ export function BookingForm({ onBookingComplete, onSubmit, isSubmitting = false,
       setStep('info')
     } else if (step === 'confirm') {
       setStep('datetime')
-      // Clear any submission errors when going back to modify date/time
-      setErrors(prev => ({ ...prev, submit: undefined }))
     }
+    // Clear any submission errors when navigating back
+    setErrors(prev => ({ ...prev, submit: undefined }))
   }
 
   const handleSubmit = async () => {

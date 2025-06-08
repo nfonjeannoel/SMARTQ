@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Clock, Loader2 } from 'lucide-react'
+import { Clock, Loader2, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface TimeSlotPickerProps {
   selectedDate: Date | null
@@ -17,6 +17,13 @@ interface TimeSlot {
   disabled: boolean
 }
 
+interface BusinessHours {
+  isOpen: boolean
+  openTime: string
+  closeTime: string
+  slotDuration: number
+}
+
 export function TimeSlotPicker({
   selectedDate,
   selectedTime,
@@ -24,53 +31,13 @@ export function TimeSlotPicker({
   className = ''
 }: TimeSlotPickerProps) {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
+  const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [expandedSection, setExpandedSection] = useState<'morning' | 'afternoon' | 'evening' | null>(null)
 
-  // Generate time slots for business hours (9 AM - 5 PM in 15-minute intervals)
-  const generateTimeSlots = (): TimeSlot[] => {
-    const slots: TimeSlot[] = []
-    const startHour = 9 // 9 AM
-    const endHour = 17 // 5 PM
-    
-    for (let hour = startHour; hour < endHour; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
-        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-        const date = new Date()
-        date.setHours(hour, minute, 0, 0)
-        
-        // Format for display (12-hour format)
-        const displayTime = date.toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        })
-
-        // Check if time slot should be disabled (past times for today)
-        let disabled = false
-        if (selectedDate) {
-          const slotDateTime = new Date(selectedDate)
-          slotDateTime.setHours(hour, minute, 0, 0)
-          const now = new Date()
-          const minimumTime = new Date(now.getTime() + 15 * 60 * 1000) // 15 minutes from now
-          
-          disabled = slotDateTime < minimumTime
-        }
-
-        slots.push({
-          time: timeString,
-          label: displayTime,
-          available: true, // Will be updated by availability check
-          disabled
-        })
-      }
-    }
-    
-    return slots
-  }
-
-  // Check availability for time slots on the selected date
-  const checkAvailability = async (date: Date) => {
+  // Fetch available time slots from the API
+  const fetchAvailableSlots = async (date: Date) => {
     if (!date) return
 
     setLoading(true)
@@ -78,54 +45,54 @@ export function TimeSlotPicker({
 
     try {
       const dateString = date.toISOString().split('T')[0]
-      
-      // Check each time slot by attempting to book it (simulate availability check)
-      // In a real implementation, you would have a dedicated availability API
-      const allSlots = generateTimeSlots()
-      const bookedSlots: string[] = []
-      
-      // For demo purposes, simulate some booked slots
-      // In production, you'd call an availability API endpoint
-      
-      // Simulate some existing appointments
-      const simulatedBookedSlots = ['10:15', '11:30', '14:00', '15:45']
-      bookedSlots.push(...simulatedBookedSlots)
-      
-      // Check if the selected date is June 9, 2025 (from our test data)
-      if (dateString === '2025-06-09') {
-        bookedSlots.push('10:15') // This slot is already booked in our test
+      const response = await fetch(`/api/available-slots?date=${dateString}`, {
+        cache: 'no-cache'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch available slots')
       }
+
+      const data = await response.json()
       
-      const updatedSlots = allSlots.map(slot => ({
-        ...slot,
-        available: !bookedSlots.includes(slot.time)
-      }))
-      
-      setTimeSlots(updatedSlots)
+      if (data.success) {
+        setTimeSlots(data.slots || [])
+        setBusinessHours(data.businessHours || null)
+      } else {
+        throw new Error(data.error || 'Failed to fetch available slots')
+      }
     } catch (err) {
       setError('Failed to check availability. Please try again.')
-      console.error('Error checking availability:', err)
+      console.error('Error fetching available slots:', err)
       
-      // Fallback: show all slots as available
-      setTimeSlots(generateTimeSlots())
+      // Fallback: show empty slots
+      setTimeSlots([])
+      setBusinessHours(null)
     } finally {
       setLoading(false)
     }
   }
 
-  // Effect to regenerate slots when selected date changes
+  // Effect to fetch slots when selected date changes
   useEffect(() => {
     if (selectedDate) {
-      checkAvailability(selectedDate)
+      fetchAvailableSlots(selectedDate)
     } else {
-      setTimeSlots(generateTimeSlots())
+      setTimeSlots([])
+      setBusinessHours(null)
     }
+    // Reset expanded section when date changes
+    setExpandedSection(null)
   }, [selectedDate])
 
   const handleTimeClick = (timeSlot: TimeSlot) => {
     if (!timeSlot.disabled && timeSlot.available) {
       onTimeSelect(timeSlot.time)
     }
+  }
+
+  const handleSectionToggle = (section: 'morning' | 'afternoon' | 'evening') => {
+    setExpandedSection(expandedSection === section ? null : section)
   }
 
   const getSlotClassName = (slot: TimeSlot) => {
@@ -156,12 +123,35 @@ export function TimeSlotPicker({
   const groupedSlots = {
     morning: timeSlots.filter(slot => {
       const hour = parseInt(slot.time.split(':')[0])
-      return hour >= 9 && hour < 12
+      return hour >= 6 && hour < 12
     }),
     afternoon: timeSlots.filter(slot => {
       const hour = parseInt(slot.time.split(':')[0])
       return hour >= 12 && hour < 17
+    }),
+    evening: timeSlots.filter(slot => {
+      const hour = parseInt(slot.time.split(':')[0])
+      return hour >= 17
     })
+  }
+
+  // Helper function to format business hours for display
+  const formatBusinessHours = () => {
+    if (!businessHours) return 'Loading hours...'
+    if (!businessHours.isOpen) return 'Closed'
+    
+    const formatTime = (time: string) => {
+      const [hours, minutes] = time.split(':').map(Number)
+      const date = new Date()
+      date.setHours(hours, minutes, 0, 0)
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })
+    }
+
+    return `${formatTime(businessHours.openTime)} - ${formatTime(businessHours.closeTime)} • ${businessHours.slotDuration}-minute appointments`
   }
 
   if (!selectedDate) {
@@ -195,6 +185,12 @@ export function TimeSlotPicker({
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
           <p className="text-red-700 text-sm">{error}</p>
+          <button
+            onClick={() => fetchAvailableSlots(selectedDate)}
+            className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline"
+          >
+            Try again
+          </button>
         </div>
       )}
 
@@ -203,49 +199,134 @@ export function TimeSlotPicker({
           <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
           <span className="ml-2 text-gray-600">Checking availability...</span>
         </div>
+      ) : businessHours && !businessHours.isOpen ? (
+        <div className="text-center py-8">
+          <Clock className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+          <p className="text-gray-500 font-medium">Closed on this day</p>
+          <p className="text-gray-400 text-sm">Please select a different date</p>
+        </div>
+      ) : timeSlots.length === 0 ? (
+        <div className="text-center py-8">
+          <Clock className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+          <p className="text-gray-500 font-medium">No available time slots</p>
+          <p className="text-gray-400 text-sm">All slots are booked or unavailable</p>
+        </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Morning slots */}
           {groupedSlots.morning.length > 0 && (
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Morning</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                {groupedSlots.morning.map(slot => (
-                  <button
-                    key={slot.time}
-                    onClick={() => handleTimeClick(slot)}
-                    disabled={slot.disabled || !slot.available}
-                    className={getSlotClassName(slot)}
-                    title={!slot.available ? 'This time slot is already booked' : 
-                           slot.disabled ? 'This time has passed' : 
-                           'Available for booking'}
-                  >
-                    {getSlotLabel(slot)}
-                  </button>
-                ))}
-              </div>
+            <div className="border border-gray-200 rounded-lg">
+              <button
+                onClick={() => handleSectionToggle('morning')}
+                className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors rounded-lg"
+              >
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-medium text-gray-700">Morning</h4>
+                  <span className="text-xs text-gray-500">({groupedSlots.morning.length} slots)</span>
+                </div>
+                {expandedSection === 'morning' ? (
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-gray-500" />
+                )}
+              </button>
+              {expandedSection === 'morning' && (
+                <div className="px-3 pb-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {groupedSlots.morning.map(slot => (
+                      <button
+                        key={slot.time}
+                        onClick={() => handleTimeClick(slot)}
+                        disabled={slot.disabled || !slot.available}
+                        className={getSlotClassName(slot)}
+                        title={!slot.available ? 'This time slot is already booked' : 
+                               slot.disabled ? 'This time has passed' : 
+                               'Available for booking'}
+                      >
+                        {getSlotLabel(slot)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* Afternoon slots */}
           {groupedSlots.afternoon.length > 0 && (
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Afternoon</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                {groupedSlots.afternoon.map(slot => (
-                  <button
-                    key={slot.time}
-                    onClick={() => handleTimeClick(slot)}
-                    disabled={slot.disabled || !slot.available}
-                    className={getSlotClassName(slot)}
-                    title={!slot.available ? 'This time slot is already booked' : 
-                           slot.disabled ? 'This time has passed' : 
-                           'Available for booking'}
-                  >
-                    {getSlotLabel(slot)}
-                  </button>
-                ))}
-              </div>
+            <div className="border border-gray-200 rounded-lg">
+              <button
+                onClick={() => handleSectionToggle('afternoon')}
+                className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors rounded-lg"
+              >
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-medium text-gray-700">Afternoon</h4>
+                  <span className="text-xs text-gray-500">({groupedSlots.afternoon.length} slots)</span>
+                </div>
+                {expandedSection === 'afternoon' ? (
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-gray-500" />
+                )}
+              </button>
+              {expandedSection === 'afternoon' && (
+                <div className="px-3 pb-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {groupedSlots.afternoon.map(slot => (
+                      <button
+                        key={slot.time}
+                        onClick={() => handleTimeClick(slot)}
+                        disabled={slot.disabled || !slot.available}
+                        className={getSlotClassName(slot)}
+                        title={!slot.available ? 'This time slot is already booked' : 
+                               slot.disabled ? 'This time has passed' : 
+                               'Available for booking'}
+                      >
+                        {getSlotLabel(slot)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Evening slots */}
+          {groupedSlots.evening.length > 0 && (
+            <div className="border border-gray-200 rounded-lg">
+              <button
+                onClick={() => handleSectionToggle('evening')}
+                className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors rounded-lg"
+              >
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-medium text-gray-700">Evening</h4>
+                  <span className="text-xs text-gray-500">({groupedSlots.evening.length} slots)</span>
+                </div>
+                {expandedSection === 'evening' ? (
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-gray-500" />
+                )}
+              </button>
+              {expandedSection === 'evening' && (
+                <div className="px-3 pb-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {groupedSlots.evening.map(slot => (
+                      <button
+                        key={slot.time}
+                        onClick={() => handleTimeClick(slot)}
+                        disabled={slot.disabled || !slot.available}
+                        className={getSlotClassName(slot)}
+                        title={!slot.available ? 'This time slot is already booked' : 
+                               slot.disabled ? 'This time has passed' : 
+                               'Available for booking'}
+                      >
+                        {getSlotLabel(slot)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -271,7 +352,7 @@ export function TimeSlotPicker({
 
       {/* Business hours info */}
       <div className="mt-3 text-xs text-gray-500">
-        Business hours: 9:00 AM - 5:00 PM • 15-minute appointments
+        {formatBusinessHours()}
       </div>
     </div>
   )

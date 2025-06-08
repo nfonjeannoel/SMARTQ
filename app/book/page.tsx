@@ -61,6 +61,11 @@ export default function BookingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Clear error state when component mounts or booking step changes
+  useEffect(() => {
+    setError(null)
+  }, [bookingStep])
+
   // Function to fetch current queue status
   const fetchQueueStatus = async () => {
     try {
@@ -424,7 +429,7 @@ export default function BookingPage() {
           <CardContent className="pt-6">
             <h3 className="font-semibold mb-2">Need Help?</h3>
             <div className="text-sm text-gray-600 space-y-1">
-              <p>• Appointments are available 9:00 AM - 5:00 PM in 15-minute intervals</p>
+              <p>• Appointments are available during business hours with configurable intervals</p>
               <p>• Please arrive at least 15 minutes before your scheduled time</p>
               <p>• Late arrivals may be converted to walk-in status</p>
               <p>• Keep your ticket ID for check-in and reference</p>
