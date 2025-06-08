@@ -62,17 +62,42 @@ export default function BookingPage() {
   // Function to fetch current queue status
   const fetchQueueStatus = async () => {
     try {
-      // For now, simulate queue status since the queue API isn't implemented yet
-      // This will be replaced with actual API call once Task 11 is complete
-      const mockQueueStatus: QueueStatus = {
-        nowServing: 'A-1749478500-88cadbfd',
-        totalInQueue: Math.floor(Math.random() * 8) + 2, // 2-10 people
-        estimatedWait: `${Math.floor(Math.random() * 30) + 10} minutes`,
-        lastUpdated: new Date()
+      const response = await fetch('/api/queue', {
+        cache: 'no-cache'
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch queue status')
       }
-      setQueueStatus(mockQueueStatus)
+      
+      const data = await response.json()
+      
+      if (data.success && data.queue) {
+        const queueStatus: QueueStatus = {
+          nowServing: data.queue.nowServing?.ticket_id || null,
+          totalInQueue: data.queue.totalInQueue || 0,
+          estimatedWait: data.queue.estimatedWait || 'No wait',
+          lastUpdated: new Date()
+        }
+        setQueueStatus(queueStatus)
+      } else {
+        // If no queue data, show empty state
+        setQueueStatus({
+          nowServing: null,
+          totalInQueue: 0,
+          estimatedWait: 'No wait',
+          lastUpdated: new Date()
+        })
+      }
     } catch (error) {
       console.error('Failed to fetch queue status:', error)
+      // Fallback to empty state on error
+      setQueueStatus({
+        nowServing: null,
+        totalInQueue: 0,
+        estimatedWait: 'No wait',
+        lastUpdated: new Date()
+      })
     }
   }
 
