@@ -162,6 +162,37 @@ export default function AdminDashboard() {
     }
   }
 
+  // Mark current patient as served (without calling next)
+  const markAsServed = async () => {
+    setActionLoading('mark-served')
+    
+    try {
+      const response = await fetch('/api/admin/mark-served', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        showMessage('success', data.message || 'Patient marked as served')
+        await fetchQueue() // Refresh queue
+      } else {
+        if (response.status === 404) {
+          showMessage('error', 'No patient currently being served')
+        } else {
+          showMessage('error', data.message || 'Failed to mark patient as served')
+        }
+      }
+    } catch (error) {
+      console.error('Mark as served failed:', error)
+      showMessage('error', 'Failed to mark patient as served')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   // Call next patient (serve current and advance queue)
   const callNext = async () => {
     setActionLoading('call-next')
@@ -386,9 +417,28 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Actions</h3>
             <div className="space-y-3">
+              {/* Show Mark as Served button when someone is currently being served */}
+              {queueState.currentlyServing && (
+                <button
+                  onClick={markAsServed}
+                  disabled={actionLoading === 'mark-served'}
+                  className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-md font-medium transition-colors"
+                >
+                  {actionLoading === 'mark-served' ? (
+                    <span className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Processing...
+                    </span>
+                  ) : (
+                    'Mark as Served'
+                  )}
+                </button>
+              )}
+              
+              {/* Call Next Patient button - show when queue has waiting patients */}
               <button
                 onClick={callNext}
-                disabled={actionLoading === 'call-next' || queueState.totalWaiting === 0}
+                disabled={actionLoading === 'call-next' || (queueState.totalWaiting === 0 && !queueState.currentlyServing)}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-md font-medium transition-colors"
               >
                 {actionLoading === 'call-next' ? (
@@ -396,10 +446,13 @@ export default function AdminDashboard() {
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                     Processing...
                   </span>
+                ) : queueState.currentlyServing ? (
+                  'Mark Served & Call Next'
                 ) : (
                   'Call Next Patient'
                 )}
               </button>
+              
               <button
                 onClick={fetchQueue}
                 className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md font-medium transition-colors"

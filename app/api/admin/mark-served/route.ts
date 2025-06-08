@@ -1,4 +1,5 @@
-// POST /api/admin/call-next - Admin endpoint to mark current ticket as served and advance queue
+// POST /api/admin/mark-served - Admin endpoint to mark current patient as served
+// This only marks the current patient as served, does not call the next patient
 // Protected by admin authentication middleware
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -34,60 +35,38 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // Process queue: find who's currently being served and who's next
+    // Find who's currently being served (status = 'arrived')
     const currentQueue = queueData || []
     const nowServing = currentQueue.find(item => item.status === 'arrived')
-    const waitingQueue = currentQueue.filter(item => item.status === 'pending')
-    const nextPatient = waitingQueue.length > 0 ? waitingQueue[0] : null
 
-    // If someone is currently being served (status='arrived'), mark them as served
-    // If no one is being served but there are pending patients, start serving the first one
-    let patientToUpdate = nowServing || nextPatient
-
-    // Check if there's anyone in the queue to serve
-    if (!patientToUpdate) {
+    if (!nowServing) {
       return NextResponse.json({
         success: false,
-        message: 'No patients in queue to serve',
+        message: 'No patient currently being served',
         queue: {
           currentlyServing: null,
-          nextInLine: null,
-          totalWaiting: 0
+          totalWaiting: currentQueue.filter(item => item.status === 'pending').length
         }
       }, { status: 404 })
     }
 
-    // Determine the action and new status
-    let newStatus: string
-    let actionMessage: string
-    
-    if (nowServing) {
-      // Someone is currently being served (arrived) - mark them as served
-      newStatus = 'served'
-      actionMessage = 'Patient marked as served'
-    } else {
-      // No one is being served but there are pending patients - call them (set to arrived)
-      newStatus = 'arrived'
-      actionMessage = 'Patient called and is now being served'
-    }
-
-    // Update the patient status
+    // Mark the current patient as served
     let updateError = null
-    let updatedPatient = null
+    let servedPatient = null
 
-    if (patientToUpdate.type === 'appointment') {
+    if (nowServing.type === 'appointment') {
       const { data: updatedAppointment, error } = await supabase
         .from('appointments')
         .update({ 
-          status: newStatus,
+          status: 'served',
           updated_at: new Date().toISOString()
         })
-        .eq('id', patientToUpdate.id)
+        .eq('id', nowServing.id)
         .select('id, user_id, date, scheduled_time, status, updated_at')
         .single()
 
       updateError = error
-      updatedPatient = updatedAppointment ? {
+      servedPatient = updatedAppointment ? {
         id: updatedAppointment.id,
         userId: updatedAppointment.user_id,
         type: 'appointment',
@@ -97,19 +76,19 @@ export async function POST(request: NextRequest) {
         updatedAt: updatedAppointment.updated_at
       } : null
 
-    } else if (patientToUpdate.type === 'walk_in') {
+    } else if (nowServing.type === 'walk_in') {
       const { data: updatedWalkIn, error } = await supabase
         .from('walk_ins')
         .update({ 
-          status: newStatus,
+          status: 'served',
           updated_at: new Date().toISOString()
         })
-        .eq('id', patientToUpdate.id)
+        .eq('id', nowServing.id)
         .select('id, user_id, check_in_time, status, updated_at')
         .single()
 
       updateError = error
-      updatedPatient = updatedWalkIn ? {
+      servedPatient = updatedWalkIn ? {
         id: updatedWalkIn.id,
         userId: updatedWalkIn.user_id,
         type: 'walk-in',
@@ -120,10 +99,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (updateError) {
-      console.error('Error updating patient status:', updateError)
+      console.error('Error updating patient status to served:', updateError)
       return NextResponse.json({
         success: false,
-        message: `Failed to update patient status to ${newStatus}`,
+        message: 'Failed to mark patient as served',
         error: updateError.message
       }, { status: 500 })
     }
@@ -139,36 +118,20 @@ export async function POST(request: NextRequest) {
     }
 
     const updatedQueue = updatedQueueData || []
-    const currentlyServing = updatedQueue.find(item => item.status === 'arrived')
     const stillWaiting = updatedQueue.filter(item => item.status === 'pending')
-    const nextInLinePatient = stillWaiting.length > 0 ? stillWaiting[0] : null
-
-    // Determine success message
-    let successMessage = actionMessage
-    if (newStatus === 'served' && nextInLinePatient) {
-      successMessage += '. Next patient ready to be called.'
-    } else if (newStatus === 'served' && !nextInLinePatient) {
-      successMessage += '. Queue is now empty.'
-    }
 
     return NextResponse.json({
       success: true,
-      message: successMessage,
-      updatedPatient,
+      message: `Patient ${nowServing.ticket_id} marked as served successfully.`,
+      servedPatient,
       queue: {
-        currentlyServing: currentlyServing ? {
-          id: currentlyServing.id,
-          type: currentlyServing.type,
-          ticketId: currentlyServing.ticket_id,
-          name: currentlyServing.name,
-          time: currentlyServing.queue_time
-        } : null,
-        nextInLine: nextInLinePatient ? {
-          id: nextInLinePatient.id,
-          type: nextInLinePatient.type,
-          ticketId: nextInLinePatient.ticket_id,
-          name: nextInLinePatient.name,
-          time: nextInLinePatient.queue_time
+        currentlyServing: null, // No one being served now
+        nextInLine: stillWaiting.length > 0 ? {
+          id: stillWaiting[0].id,
+          type: stillWaiting[0].type,
+          ticketId: stillWaiting[0].ticket_id,
+          name: stillWaiting[0].name,
+          time: stillWaiting[0].queue_time
         } : null,
         totalWaiting: stillWaiting.length,
         queueEmpty: stillWaiting.length === 0
@@ -176,13 +139,12 @@ export async function POST(request: NextRequest) {
       adminAction: {
         performedBy: session.email,
         timestamp: new Date().toISOString(),
-        action: 'call_next',
-        newStatus
+        action: 'mark_served'
       }
     })
 
   } catch (error) {
-    console.error('Admin call-next API error:', error)
+    console.error('Admin mark-served API error:', error)
     
     return NextResponse.json({
       success: false,
