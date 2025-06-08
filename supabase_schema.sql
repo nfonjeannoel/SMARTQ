@@ -220,14 +220,45 @@ GRANT SELECT ON current_queue TO anon, authenticated, service_role;
 CREATE OR REPLACE FUNCTION get_available_slots(target_date DATE)
 RETURNS TABLE(slot_time TIMESTAMP WITH TIME ZONE) AS $$
 DECLARE
-    start_time TIME := '09:00:00';
-    end_time TIME := '17:00:00';
-    slot_duration INTERVAL := '15 minutes';
+    day_of_week INTEGER;
+    bh_record RECORD;
+    start_time TIME;
+    end_time TIME;
+    break_start TIME;
+    break_end TIME;
+    slot_duration INTERVAL;
     current_slot TIMESTAMP WITH TIME ZONE;
 BEGIN
+    -- Get day of week (0 = Sunday, 6 = Saturday)
+    day_of_week := EXTRACT(DOW FROM target_date);
+    
+    -- Get business hours for this day
+    SELECT * INTO bh_record 
+    FROM business_hours 
+    WHERE business_hours.day_of_week = get_available_slots.day_of_week;
+    
+    -- If no business hours record or closed, return empty
+    IF bh_record IS NULL OR NOT bh_record.is_open THEN
+        RETURN;
+    END IF;
+    
+    start_time := bh_record.open_time;
+    end_time := bh_record.close_time;
+    break_start := bh_record.break_start;
+    break_end := bh_record.break_end;
+    slot_duration := (bh_record.slot_duration || ' minutes')::INTERVAL;
+    
     current_slot := target_date + start_time;
     
-    WHILE current_slot::TIME <= end_time LOOP
+    WHILE current_slot::TIME < end_time LOOP
+        -- Skip break time if configured
+        IF break_start IS NOT NULL AND break_end IS NOT NULL THEN
+            IF current_slot::TIME >= break_start AND current_slot::TIME < break_end THEN
+                current_slot := current_slot + slot_duration;
+                CONTINUE;
+            END IF;
+        END IF;
+        
         -- Check if slot is available (no existing appointment)
         IF NOT EXISTS (
             SELECT 1 FROM appointments 
@@ -274,4 +305,60 @@ SELECT
     CURRENT_DATE + TIME '10:15:00',
     'booked'
 FROM users u WHERE u.name = 'Jane Smith'
-ON CONFLICT DO NOTHING; 
+ON CONFLICT DO NOTHING;
+
+-- Business Hours Management
+-- Create business_hours table for configurable operating hours
+CREATE TABLE IF NOT EXISTS business_hours (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    day_of_week INTEGER NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6), -- 0 = Sunday, 6 = Saturday
+    is_open BOOLEAN NOT NULL DEFAULT true,
+    open_time TIME,
+    close_time TIME,
+    break_start TIME,
+    break_end TIME,
+    slot_duration INTEGER NOT NULL DEFAULT 15, -- in minutes
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Ensure valid time ranges
+    CONSTRAINT business_hours_valid_times CHECK (
+        (NOT is_open) OR 
+        (is_open AND open_time IS NOT NULL AND close_time IS NOT NULL AND open_time < close_time)
+    ),
+    CONSTRAINT business_hours_valid_break CHECK (
+        (break_start IS NULL AND break_end IS NULL) OR 
+        (break_start IS NOT NULL AND break_end IS NOT NULL AND break_start < break_end)
+    ),
+    -- One record per day of week
+    UNIQUE(day_of_week)
+);
+
+-- Create trigger for updated_at on business_hours
+CREATE TRIGGER update_business_hours_updated_at BEFORE UPDATE ON business_hours
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert default business hours (Monday-Friday 9AM-5PM, closed weekends)
+INSERT INTO business_hours (day_of_week, is_open, open_time, close_time, slot_duration) VALUES 
+    (0, false, null, null, 15), -- Sunday - closed
+    (1, true, '09:00:00', '17:00:00', 15), -- Monday
+    (2, true, '09:00:00', '17:00:00', 15), -- Tuesday  
+    (3, true, '09:00:00', '17:00:00', 15), -- Wednesday
+    (4, true, '09:00:00', '17:00:00', 15), -- Thursday
+    (5, true, '09:00:00', '17:00:00', 15), -- Friday
+    (6, false, null, null, 15)  -- Saturday - closed
+ON CONFLICT (day_of_week) DO NOTHING;
+
+-- Enable RLS on business_hours
+ALTER TABLE business_hours ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for business_hours table
+CREATE POLICY "Public can view business hours" ON business_hours
+    FOR SELECT USING (true);
+
+CREATE POLICY "Admin can manage business hours" ON business_hours
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- Grant permissions
+GRANT SELECT ON business_hours TO anon, authenticated;
+GRANT ALL ON business_hours TO service_role; 

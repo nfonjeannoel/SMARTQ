@@ -5,6 +5,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import BusinessHoursManager from '@/components/BusinessHoursManager'
 
 interface QueueItem {
   id: string
@@ -44,6 +45,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [activeTab, setActiveTab] = useState<'queue' | 'settings'>('queue')
 
   // Check admin session
   const checkSession = useCallback(async () => {
@@ -279,6 +281,32 @@ export default function AdminDashboard() {
               </button>
             </div>
           </div>
+          
+          {/* Navigation Tabs */}
+          <div className="border-t border-gray-200">
+            <nav className="flex space-x-8">
+              <button
+                onClick={() => setActiveTab('queue')}
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'queue'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Queue Management
+              </button>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'settings'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Business Hours
+              </button>
+            </nav>
+          </div>
         </div>
       </header>
 
@@ -297,6 +325,8 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {activeTab === 'queue' && (
+          <div>
         {/* Queue Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {/* Currently Serving */}
@@ -445,6 +475,12 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <BusinessHoursManager />
+        )}
       </main>
     </div>
   )
