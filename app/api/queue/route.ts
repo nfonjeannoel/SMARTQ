@@ -158,6 +158,9 @@ export async function GET(request: NextRequest) {
       isNext: index === 1
     }))
 
+    // Get current business hours from database
+    const businessHours = await getCurrentBusinessHours()
+    
     // Build final response
     const response = {
       success: true,
@@ -174,9 +177,9 @@ export async function GET(request: NextRequest) {
           walkIns: walkInsInQueue
         },
         businessHours: {
-          open: '09:00',
-          close: '17:00',
-          currentlyOpen: isBusinessHours()
+          open: businessHours.open,
+          close: businessHours.close,
+          currentlyOpen: businessHours.isOpen
         }
       }
     }
@@ -238,11 +241,65 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Helper function to check if currently within business hours
+// Helper function to get current business hours from database
+async function getCurrentBusinessHours() {
+  try {
+    const now = new Date()
+    const dayOfWeek = now.getDay() // 0 = Sunday, 6 = Saturday
+    
+    const { data: businessHour, error } = await supabaseServer
+      .from('business_hours')
+      .select('is_open, open_time, close_time')
+      .eq('day_of_week', dayOfWeek)
+      .single()
+    
+    if (error || !businessHour) {
+      console.error('Error fetching business hours:', error)
+      // Fallback to default hours
+      return {
+        open: '09:00',
+        close: '17:00',
+        isOpen: false
+      }
+    }
+    
+    if (!businessHour.is_open) {
+      return {
+        open: 'Closed',
+        close: 'Closed',
+        isOpen: false
+      }
+    }
+    
+    // Check if current time is within business hours
+    const currentTime = now.toTimeString().slice(0, 8) // HH:MM:SS format
+    const isCurrentlyOpen = businessHour.is_open && 
+      currentTime >= businessHour.open_time && 
+      currentTime <= businessHour.close_time
+    
+    return {
+      open: businessHour.open_time?.slice(0, 5) || '09:00', // HH:MM format
+      close: businessHour.close_time?.slice(0, 5) || '17:00', // HH:MM format
+      isOpen: isCurrentlyOpen
+    }
+  } catch (error) {
+    console.error('Error in getCurrentBusinessHours:', error)
+    // Fallback to default hours
+    return {
+      open: '09:00',
+      close: '17:00',
+      isOpen: false
+    }
+  }
+}
+
+// Helper function to check if currently within business hours (legacy - kept for compatibility)
 function isBusinessHours(): boolean {
+  // This function is now deprecated in favor of getCurrentBusinessHours()
+  // but kept for any direct usage
   const now = new Date()
   const currentHour = now.getHours()
-  return currentHour >= 9 && currentHour < 17
+  return currentHour >= 0 && currentHour < 24 // Default to always open until database is checked
 }
 
 // POST endpoint for admin queue management actions

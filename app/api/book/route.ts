@@ -22,6 +22,66 @@ const BookingRequestSchema = z.object({
 
 type BookingRequest = z.infer<typeof BookingRequestSchema>
 
+// Helper function to validate appointment time against business hours
+async function validateAppointmentTime(scheduledTime: Date) {
+  try {
+    const dayOfWeek = scheduledTime.getDay() // 0 = Sunday, 6 = Saturday
+    
+    const { data: businessHour, error } = await supabaseServer
+      .from('business_hours')
+      .select('is_open, open_time, close_time, slot_duration')
+      .eq('day_of_week', dayOfWeek)
+      .single()
+    
+    if (error || !businessHour) {
+      console.error('Error fetching business hours:', error)
+      return { 
+        isValid: false, 
+        message: 'Unable to verify business hours for the selected day'
+      }
+    }
+    
+    if (!businessHour.is_open) {
+      return { 
+        isValid: false, 
+        message: 'We are closed on the selected day'
+      }
+    }
+    
+    // Check if scheduled time is within business hours
+    const appointmentTime = scheduledTime.toTimeString().slice(0, 8) // HH:MM:SS format
+    const isWithinHours = appointmentTime >= businessHour.open_time && appointmentTime < businessHour.close_time
+    
+    if (!isWithinHours) {
+      const openTime = businessHour.open_time?.slice(0, 5) || '09:00'
+      const closeTime = businessHour.close_time?.slice(0, 5) || '17:00'
+      return { 
+        isValid: false, 
+        message: `Appointments are only available during business hours (${openTime} - ${closeTime})`
+      }
+    }
+    
+    // Check if appointment is on valid slot interval
+    const minutes = scheduledTime.getMinutes()
+    const slotDuration = businessHour.slot_duration || 15
+    
+    if (minutes % slotDuration !== 0) {
+      return { 
+        isValid: false, 
+        message: `Appointments must be scheduled in ${slotDuration}-minute intervals (e.g., ${openTime}, ${openTime.slice(0,3)}${slotDuration.toString().padStart(2, '0')}, etc.)`
+      }
+    }
+    
+    return { isValid: true, message: 'Valid appointment time' }
+  } catch (error) {
+    console.error('Error validating appointment time:', error)
+    return { 
+      isValid: false, 
+      message: 'Unable to validate appointment time'
+    }
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Parse and validate request body
@@ -55,17 +115,15 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Validate business hours (9 AM - 5 PM)
-    const hour = scheduledTime.getHours()
-    const minute = scheduledTime.getMinutes()
-    
-    if (hour < 9 || hour >= 17 || minute % 15 !== 0) {
+    // Validate business hours and appointment time
+    const appointmentValidation = await validateAppointmentTime(scheduledTime)
+    if (!appointmentValidation.isValid) {
       return NextResponse.json({
         success: false,
-        message: 'Appointments are only available during business hours (9:00 AM - 5:00 PM) in 15-minute intervals',
+        message: appointmentValidation.message,
         details: {
           requestedTime: `${time}`,
-          validTimes: 'Times must be on 15-minute intervals (e.g., 09:00, 09:15, 09:30, etc.)'
+          validTimes: 'Please check business hours and available time slots'
         }
       }, { status: 400 })
     }

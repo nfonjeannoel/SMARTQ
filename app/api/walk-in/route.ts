@@ -20,6 +20,50 @@ const WalkInRequestSchema = z.object({
 
 type WalkInRequest = z.infer<typeof WalkInRequestSchema>
 
+// Helper function to check if currently within business hours
+async function isCurrentlyWithinBusinessHours() {
+  try {
+    const now = new Date()
+    const dayOfWeek = now.getDay() // 0 = Sunday, 6 = Saturday
+    
+    const { data: businessHour, error } = await supabaseServer
+      .from('business_hours')
+      .select('is_open, open_time, close_time')
+      .eq('day_of_week', dayOfWeek)
+      .single()
+    
+    if (error || !businessHour) {
+      console.error('Error fetching business hours:', error)
+      return { isOpen: false, message: 'Unable to verify business hours' }
+    }
+    
+    if (!businessHour.is_open) {
+      return { 
+        isOpen: false, 
+        message: 'We are currently closed today'
+      }
+    }
+    
+    // Check if current time is within business hours
+    const currentTime = now.toTimeString().slice(0, 8) // HH:MM:SS format
+    const isWithinHours = currentTime >= businessHour.open_time && currentTime <= businessHour.close_time
+    
+    if (!isWithinHours) {
+      const openTime = businessHour.open_time?.slice(0, 5) || '09:00'
+      const closeTime = businessHour.close_time?.slice(0, 5) || '17:00'
+      return { 
+        isOpen: false, 
+        message: `Walk-ins are only accepted during business hours (${openTime} - ${closeTime})`
+      }
+    }
+    
+    return { isOpen: true, message: 'Currently within business hours' }
+  } catch (error) {
+    console.error('Error checking business hours:', error)
+    return { isOpen: false, message: 'Unable to verify business hours' }
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Parse and validate request body
@@ -37,15 +81,15 @@ export async function POST(request: NextRequest) {
     const { name, phone, email } = validationResult.data
     const now = new Date()
 
-    // Check if within business hours (9 AM - 5 PM)
-    const currentHour = now.getHours()
-    if (currentHour < 9 || currentHour >= 17) {
+    // Check if within business hours
+    const businessHoursCheck = await isCurrentlyWithinBusinessHours()
+    if (!businessHoursCheck.isOpen) {
       return NextResponse.json({
         success: false,
-        message: 'Walk-ins are only accepted during business hours (9:00 AM - 5:00 PM)',
+        message: businessHoursCheck.message,
         details: {
           currentTime: now.toISOString(),
-          businessHours: '9:00 AM - 5:00 PM'
+          businessHours: 'Please check business hours in the admin settings'
         }
       }, { status: 400 })
     }
