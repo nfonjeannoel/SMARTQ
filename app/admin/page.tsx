@@ -85,8 +85,12 @@ export default function AdminDashboard() {
 
   // Fetch current queue status
   const fetchQueue = useCallback(async () => {
+    console.log('fetchQueue called')
     try {
-      const response = await fetch('/api/queue', {
+      const response = await fetch('/api/admin/queue', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         cache: 'no-cache'
       })
       
@@ -95,15 +99,19 @@ export default function AdminDashboard() {
       }
       
       const data = await response.json()
+      console.log('Queue API response:', data)
       
       if (data.success && data.queue) {
-        setQueueState({
+        const newState = {
           currentlyServing: data.queue.nowServing || null,
           queue: Array.isArray(data.queue.current) ? data.queue.current : [],
           totalWaiting: data.queue.totalInQueue || 0,
           lastUpdated: new Date().toISOString()
-        })
+        }
+        console.log('Setting queue state:', newState)
+        setQueueState(newState)
       } else {
+        console.error('Queue API returned error:', data)
         // Handle API error response
         setQueueState(prev => ({
           ...prev,
@@ -143,6 +151,7 @@ export default function AdminDashboard() {
         showMessage('success', 'Patient marked as arrived')
         await fetchQueue() // Refresh queue
       } else {
+        console.error('Mark arrived API error:', data)
         showMessage('error', data.message || 'Failed to mark patient as arrived')
       }
     } catch (error) {
@@ -457,11 +466,11 @@ export default function AdminDashboard() {
                       <div className="flex items-center space-x-2">
                         {patient.status !== 'arrived' && (
                           <button
-                            onClick={() => markAsArrived(patient.ticket_id, patient.type)}
-                            disabled={actionLoading === `mark-${patient.ticket_id}`}
+                            onClick={() => markAsArrived(patient.id, patient.type === 'walk_in' ? 'walk-in' : patient.type)}
+                            disabled={actionLoading === `mark-${patient.id}`}
                             className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-3 py-1 rounded text-sm font-medium transition-colors"
                           >
-                            {actionLoading === `mark-${patient.ticket_id}` ? (
+                            {actionLoading === `mark-${patient.id}` ? (
                               <span className="flex items-center">
                                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
                                 ...
