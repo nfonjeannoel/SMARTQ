@@ -7,6 +7,8 @@ import { User, Phone, Mail, Calendar as CalendarIcon, Clock, Check, AlertCircle,
 
 interface BookingFormProps {
   onBookingComplete?: (booking: BookingResult) => void
+  onSubmit?: (data: { name: string; phone?: string; email?: string; date: string; time: string }) => void
+  isSubmitting?: boolean
   className?: string
 }
 
@@ -56,7 +58,7 @@ interface FormErrors {
   submit?: string
 }
 
-export function BookingForm({ onBookingComplete, className = '' }: BookingFormProps) {
+export function BookingForm({ onBookingComplete, onSubmit, isSubmitting = false, className = '' }: BookingFormProps) {
   const [bookingData, setBookingData] = useState<BookingData>({
     name: '',
     phone: '',
@@ -133,10 +135,18 @@ export function BookingForm({ onBookingComplete, className = '' }: BookingFormPr
     if (bookingData.time) {
       handleInputChange('time', null)
     }
+    // Clear any submission errors when date changes
+    if (errors.submit) {
+      setErrors(prev => ({ ...prev, submit: undefined }))
+    }
   }
 
   const handleTimeSelect = (time: string) => {
     handleInputChange('time', time)
+    // Clear any submission errors when time changes
+    if (errors.submit) {
+      setErrors(prev => ({ ...prev, submit: undefined }))
+    }
   }
 
   const handleNextStep = () => {
@@ -160,24 +170,33 @@ export function BookingForm({ onBookingComplete, className = '' }: BookingFormPr
       setStep('info')
     } else if (step === 'confirm') {
       setStep('datetime')
+      // Clear any submission errors when going back to modify date/time
+      setErrors(prev => ({ ...prev, submit: undefined }))
     }
   }
 
   const handleSubmit = async () => {
     if (!validateForm()) return
 
+    const payload = {
+      name: bookingData.name.trim(),
+      phone: bookingData.phone.trim() || undefined,
+      email: bookingData.email.trim() || undefined,
+      date: bookingData.date!.toISOString().split('T')[0],
+      time: bookingData.time!
+    }
+
+    // If onSubmit prop is provided, use it (for the new booking flow)
+    if (onSubmit) {
+      onSubmit(payload)
+      return
+    }
+
+    // Otherwise, use the old booking flow
     setLoading(true)
     setErrors({})
 
     try {
-      const payload = {
-        name: bookingData.name.trim(),
-        phone: bookingData.phone.trim() || undefined,
-        email: bookingData.email.trim() || undefined,
-        date: bookingData.date!.toISOString().split('T')[0],
-        time: bookingData.time!
-      }
-
       const response = await fetch('/api/book', {
         method: 'POST',
         headers: {
@@ -468,17 +487,17 @@ export function BookingForm({ onBookingComplete, className = '' }: BookingFormPr
           <div className="flex justify-between">
             <button
               onClick={handlePrevStep}
-              disabled={loading}
+              disabled={isSubmitting || loading}
               className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 transition-colors"
             >
               Back
             </button>
             <button
               onClick={handleSubmit}
-              disabled={loading}
+              disabled={isSubmitting || loading}
               className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-2"
             >
-              {loading ? (
+              {(isSubmitting || loading) ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Booking...

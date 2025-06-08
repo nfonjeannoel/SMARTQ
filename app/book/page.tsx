@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { BookingForm } from '@/components/BookingForm'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -52,6 +53,7 @@ interface QueueStatus {
 }
 
 export default function BookingPage() {
+  const router = useRouter()
   const [bookingStep, setBookingStep] = useState<'form' | 'confirmation'>('form')
   const [bookingData, setBookingData] = useState<BookingData | null>(null)
   const [confirmation, setConfirmation] = useState<BookingConfirmation | null>(null)
@@ -125,11 +127,23 @@ export default function BookingPage() {
       const result: BookingConfirmation = await response.json()
 
       if (result.success) {
-        setBookingData(data)
-        setConfirmation(result)
-        setBookingStep('confirmation')
-        // Refresh queue status after successful booking
-        fetchQueueStatus()
+        // Store appointment details for the confirmation page
+        const appointmentDetails = {
+          ticketId: result.appointment?.ticketId,
+          name: data.name,
+          phone: data.phone,
+          email: data.email,
+          date: data.date,
+          time: data.time,
+          scheduledTime: result.appointment?.scheduledTime,
+          status: result.appointment?.status || 'booked'
+        }
+        
+        // Store in sessionStorage for the appointment details page
+        sessionStorage.setItem('appointmentDetails', JSON.stringify(appointmentDetails))
+        
+        // Redirect to appointment details page
+        router.push(`/appointment/${result.appointment?.ticketId}`)
       } else {
         setError(result.message || 'Failed to book appointment')
       }
