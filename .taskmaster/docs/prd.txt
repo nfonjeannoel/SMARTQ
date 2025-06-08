@@ -1,0 +1,94 @@
+# SmartQ2 - Queue Management System
+## Product Requirements Document
+
+### Overview
+SmartQ2 is a comprehensive queue management system built with Next.js and Supabase that allows patients to book appointments, check in, and manage walk-in queues efficiently. The system provides both patient-facing interfaces and an admin dashboard for queue management.
+
+### Core Features
+
+#### 1. Database Schema (Supabase)
+The system requires three main database tables:
+- **users**: Store patient information (id, name, phone/email)
+- **appointments**: Track scheduled appointments (id, user_id → users.id, date, scheduled_time, status)  
+- **walk_ins**: Manage walk-in patients (id, user_id → users.id, check_in_time, status, original_appointment_id)
+
+#### 2. Environment Configuration
+The application requires proper environment variable setup:
+- NEXT_PUBLIC_SUPABASE_URL & NEXT_PUBLIC_SUPABASE_ANON_KEY for client-side access
+- SUPABASE_SERVICE_ROLE_KEY for server-side operations
+- ADMIN_EMAIL / ADMIN_PASSWORD for admin authentication
+
+#### 3. Appointment Booking System
+**Book Appointment API (POST /api/book)**:
+- Validate date and 15-minute slot availability
+- Prevent double-booking by checking existing appointments
+- Insert or upsert user and appointment records
+- Return generated Ticket ID and current queue snapshot
+
+**Booking Page (/book)**:
+- Interactive calendar with time-slot picker component
+- Form submission calls booking API
+- Confirmation display showing Ticket ID, scheduled date/time
+- Instructions to check-in ≥15 minutes before appointment
+- Live "Now Serving" and "Ahead" count display
+
+#### 4. Appointment Check-In System
+**Check-In API (POST /api/check-in)**:
+- Verify Ticket ID and timing (now ≥ scheduled_time – 15 min)
+- On-time arrivals: update appointments.status → arrived
+- Late arrivals: mark as no-show, create new walk_ins record
+- Return updated status and queue information
+
+**Check-In Page (/check-in)**:
+- Simple form for Ticket ID and phone/email verification
+- Success message: "You're in the queue"
+- No-show handling: "Moved to Walk-In (Ticket W-XXX)"
+
+#### 5. Walk-In Management System
+**Walk-In API (POST /api/walk-in)**:
+- Search for available "booked" appointments within check-in window (scheduled_time ± 15 min)
+- If slot available: update appointment → arrived for current patient
+- Otherwise: insert new walk_ins record
+- Return assigned Ticket ID and queue snapshot
+
+**Walk-In Page (/walk-in)**:
+- Patient information form (name + phone/email)
+- Display whether patient claimed an available slot or joined walk-in line
+- Live queue status updates
+
+#### 6. Unified Queue Management
+**Queue API (GET /api/queue)**:
+- Fetch arrived appointments for today (ordered by scheduled_time)
+- Fetch pending walk-ins (ordered by check_in_time)
+- Return merged list with "Now Serving" pointer
+- Real-time queue status for all interfaces
+
+#### 7. Admin Dashboard
+**Admin Dashboard (/admin)**:
+- Server-side authentication using ADMIN_EMAIL/ADMIN_PASSWORD
+- Display merged queue with "Now Serving" highlighting
+- **Mark Arrived** button: updates specific ticket to arrived status
+- **Call Next** button: marks current ticket as served and refreshes queue
+- Real-time queue management capabilities
+
+### Technical Requirements
+- **Frontend**: Next.js with TypeScript
+- **Backend**: Next.js API routes
+- **Database**: Supabase PostgreSQL
+- **Authentication**: Simple admin authentication
+- **Real-time**: Live queue updates across all interfaces
+- **Responsive**: Mobile-friendly design for patient interfaces
+
+### User Experience Goals
+- Minimize patient wait time uncertainty
+- Provide clear queue visibility
+- Enable flexible appointment and walk-in handling
+- Streamline admin queue management
+- Support both scheduled and spontaneous patient visits
+
+### Success Metrics
+- Reduced patient wait time complaints
+- Increased appointment adherence
+- Efficient walk-in integration
+- Smooth admin queue operations
+- High system reliability and uptime 
