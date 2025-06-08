@@ -378,7 +378,7 @@ async function handleCallNext(ticketId: string) {
       .from('walk_ins')
       .update({ status: 'serving' })
       .eq('ticket_id', ticketId)
-      .eq('status', 'waiting')
+      .eq('status', 'pending')
       .select('ticket_id, status')
       .single()
 
@@ -438,7 +438,7 @@ async function handleMarkServed(ticketId: string) {
       .from('walk_ins')
       .update({ status: 'served' })
       .eq('ticket_id', ticketId)
-      .in('status', ['waiting', 'serving'])
+      .in('status', ['pending', 'serving'])
       .select('ticket_id, status')
       .single()
 

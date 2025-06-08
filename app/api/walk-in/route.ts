@@ -250,7 +250,7 @@ export async function POST(request: NextRequest) {
         .insert({
           user_id: userId,
           check_in_time: checkInTime,
-          status: 'waiting',
+          status: 'pending',
           original_appointment_id: null // Pure walk-in, no original appointment
         })
         .select('id, ticket_id, check_in_time, status')

@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
         .insert({
           user_id: appointment.user_id,
           check_in_time: checkInTime,
-          status: 'waiting',
+          status: 'pending',
           original_appointment_id: appointment.id
         })
         .select('id, ticket_id, check_in_time, status')

@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       })
 
     } else if (ticketType === 'walk-in') {
-      // Mark walk-in as arrived (update status from 'waiting' to 'arrived')
+              // Mark walk-in as arrived (update status from 'pending' to 'arrived')
       const { data: walkIn, error: fetchError } = await supabase
         .from('walk_ins')
         .select('id, user_id, check_in_time, status')
