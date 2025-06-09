@@ -1,4 +1,4 @@
-import { ThemeToggle } from "@/components/theme-toggle"
+import { Navigation } from "@/components"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -20,29 +20,7 @@ import {
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
-      {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-md dark:bg-gray-900/80">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
-                <Clock className="h-4 w-4 text-white" />
-              </div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">SmartQ</h1>
-              <Badge variant="secondary" className="text-xs">
-                Healthcare Queue Management
-              </Badge>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Badge variant="outline" className="text-xs">
-                <CheckCircle className="h-3 w-3 mr-1 text-green-500" />
-                System Online
-              </Badge>
-              <ThemeToggle />
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navigation showBackButton={false} showBreadcrumbs={false} />
 
       <main className="container mx-auto px-4 py-12">
         {/* Hero Section */}

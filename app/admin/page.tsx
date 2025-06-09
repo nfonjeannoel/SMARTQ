@@ -5,6 +5,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { Navigation } from '@/components'
 import BusinessHoursManager from '@/components/BusinessHoursManager'
 
 interface QueueItem {
@@ -283,10 +284,13 @@ export default function AdminDashboard() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
+        <Navigation showBackButton={false} />
+        <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600 dark:text-gray-400">Loading admin dashboard...</p>
+          </div>
         </div>
       </div>
     )
@@ -295,31 +299,36 @@ export default function AdminDashboard() {
   // Not authenticated (should redirect, but show fallback)
   if (!session?.authenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Redirecting to login...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
+        <Navigation showBackButton={false} />
+        <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
+          <div className="text-center">
+            <p className="text-gray-600 dark:text-gray-400">Redirecting to login...</p>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
+      <Navigation showBackButton={false} />
+      
+      {/* Admin Header */}
+      <div className="bg-white/80 backdrop-blur-md dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-sm text-gray-500">SmartQ2 Queue Management</p>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Queue Management</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Real-time admin dashboard</p>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
                 Logged in as: <span className="font-medium">{session.email}</span>
               </span>
               <button
                 onClick={logout}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                className="bg-gray-600 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
               >
                 Logout
               </button>
@@ -327,14 +336,14 @@ export default function AdminDashboard() {
           </div>
           
           {/* Navigation Tabs */}
-          <div className="border-t border-gray-200">
+          <div className="border-t border-gray-200 dark:border-gray-700">
             <nav className="flex space-x-8">
               <button
                 onClick={() => setActiveTab('queue')}
                 className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'queue'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                 }`}
               >
                 Queue Management
@@ -343,8 +352,8 @@ export default function AdminDashboard() {
                 onClick={() => setActiveTab('settings')}
                 className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'settings'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                 }`}
               >
                 Business Hours
@@ -352,7 +361,7 @@ export default function AdminDashboard() {
             </nav>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Messages */}
       {message && (

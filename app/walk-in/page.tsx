@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Navigation } from '@/components'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,8 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { CheckCircle, Clock, Users, AlertCircle, Loader2, ArrowLeft, Phone, Mail, UserPlus, Calendar, AlertTriangle } from 'lucide-react'
-import Link from 'next/link'
+import { CheckCircle, Clock, Users, AlertCircle, Loader2, Phone, Mail, UserPlus, Calendar, AlertTriangle } from 'lucide-react'
 
 // Types for walk-in flow
 interface WalkInData {
@@ -204,22 +204,21 @@ export default function WalkInPage() {
   const isBusinessHours = queueStatus?.metadata?.businessHours?.currentlyOpen ?? true
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center">
-          <Link 
-            href="/" 
-            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Home
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Walk-In Registration</h1>
-          <p className="text-gray-600">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
+      <Navigation />
+      
+      <main className="container mx-auto px-4 py-8">
+        {/* Page Title */}
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+            Walk-In Registration
+          </h2>
+          <p className="text-lg text-gray-600 dark:text-gray-300">
             No appointment? No problem! We'll try to find you an available slot or add you to the walk-in queue.
           </p>
         </div>
+
+        <div className="max-w-2xl mx-auto space-y-6">
 
         {/* Business Hours Alert */}
         {!isBusinessHours && (
@@ -551,7 +550,8 @@ export default function WalkInPage() {
             </CardContent>
           </Card>
         )}
-      </div>
+        </div>
+      </main>
     </div>
   )
 } 

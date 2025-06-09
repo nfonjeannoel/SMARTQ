@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Navigation } from '@/components'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,8 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { CheckCircle, Clock, Users, AlertCircle, Loader2, ArrowLeft, Phone, Mail, Ticket } from 'lucide-react'
-import Link from 'next/link'
+import { CheckCircle, Clock, Users, AlertCircle, Loader2, Phone, Mail, Ticket } from 'lucide-react'
 
 // Types for check-in flow
 interface CheckInData {
@@ -170,22 +170,21 @@ export default function CheckInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
+      <Navigation />
+      
+      <main className="container mx-auto px-4 py-8">
+        {/* Page Title */}
         <div className="text-center mb-8">
-          <Link 
-            href="/" 
-            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Home
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Check-In</h1>
-          <p className="text-gray-600">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+            Check-In
+          </h2>
+          <p className="text-lg text-gray-600 dark:text-gray-300">
             Enter your ticket ID and contact information to check in for your appointment
           </p>
         </div>
+
+        <div className="max-w-2xl mx-auto">
 
         {!response?.success ? (
           /* Check-In Form */
@@ -356,11 +355,12 @@ export default function CheckInPage() {
                       <div>
                         <strong>Original Appointment:</strong> {formatTime(response.walkIn.originalAppointment.scheduledTime)}
                         <br />
-                        <strong>Check-In Time:</strong> {formatTime(response.walkIn.checkInTime)}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                        <strong>Check-In Time:</strong> {formatTime(response.walkIn.checkInTime            )}
+          </div>
+        )}
+        </div>
+      </main>
+    </div>
 
                 {/* Instructions */}
                 {response.instructions && (

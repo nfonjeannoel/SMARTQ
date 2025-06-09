@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Navigation } from '@/components'
 
 export default function AdminLogin() {
   const router = useRouter()
@@ -71,20 +72,23 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-            Admin Login
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            SmartQ2 Queue Management System
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
+      <Navigation />
+      
+      <main className="flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+              Admin Login
+            </h2>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              SmartQ Queue Management System
+            </p>
+          </div>
         </div>
-      </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
@@ -159,16 +163,9 @@ export default function AdminLogin() {
             </div>
           </div>
 
-          <div className="mt-6 text-center">
-            <a
-              href="/"
-              className="text-sm text-blue-600 hover:text-blue-500 transition-colors"
-            >
-              ← Back to main site
-            </a>
-          </div>
+                    </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 } 

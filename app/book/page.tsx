@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { BookingForm } from '@/components/BookingForm'
+import { Navigation } from '@/components'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { Clock, CheckCircle, Users, Calendar, Phone, Mail, Ticket, ArrowLeft } from 'lucide-react'
+import { Clock, CheckCircle, Users, Calendar, Phone, Mail, Ticket } from 'lucide-react'
 
 // Types for booking flow
 interface BookingData {
@@ -189,14 +190,16 @@ export default function BookingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
+      <Navigation />
+      
+      <main className="container mx-auto px-4 py-8">
+        {/* Page Title */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
             Book Your Appointment
-          </h1>
-          <p className="text-gray-600">
+          </h2>
+          <p className="text-lg text-gray-600 dark:text-gray-300">
             Schedule your visit and get a guaranteed time slot
           </p>
         </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { Navigation } from '@/components'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -150,42 +151,49 @@ export default function AppointmentDetailsPage() {
 
   if (error || !appointment) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8 px-4">
-        <div className="max-w-2xl mx-auto">
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3 mb-4">
-                <AlertCircle className="h-6 w-6 text-red-600" />
-                <h2 className="text-xl font-semibold text-red-900">
-                  Appointment Not Found
-                </h2>
-              </div>
-              <p className="text-red-700 mb-4">
-                {error || 'The appointment details could not be found.'}
-              </p>
-              <Button onClick={() => router.push('/')} className="bg-blue-600 hover:bg-blue-700">
-                <Home className="h-4 w-4 mr-2" />
-                Return Home
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
+        <Navigation />
+        
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto">
+            <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                  <h2 className="text-xl font-semibold text-red-900 dark:text-red-100">
+                    Appointment Not Found
+                  </h2>
+                </div>
+                <p className="text-red-700 dark:text-red-300 mb-4">
+                  {error || 'The appointment details could not be found.'}
+                </p>
+                <Button onClick={() => router.push('/')} className="bg-blue-600 hover:bg-blue-700">
+                  <Home className="h-4 w-4 mr-2" />
+                  Return Home
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Appointment Confirmed
-          </h1>
-          <p className="text-gray-600">
-            Your appointment has been successfully booked
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
+      <Navigation customBackUrl="/book" />
+      
+      <main className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Page Title */}
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+              Appointment Confirmed
+            </h2>
+            <p className="text-lg text-gray-600 dark:text-gray-300">
+              Your appointment has been successfully booked
+            </p>
+          </div>
 
         {/* Success Banner */}
         <Card className="mb-6 border-green-200 bg-green-50">
@@ -370,7 +378,8 @@ export default function AppointmentDetailsPage() {
             </Card>
           </div>
         </div>
-      </div>
+        </div>
+      </main>
     </div>
   )
 } 
