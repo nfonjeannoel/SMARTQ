@@ -120,8 +120,18 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Get day of week (0 = Sunday, 1 = Monday, etc.)
-    const dayOfWeek = selectedDate.getDay()
+    // Get day of week from database to avoid timezone issues
+    const { data: dayOfWeekData, error: dayOfWeekError } = await supabase
+      .rpc('get_day_of_week', { input_date: date })
+
+    let dayOfWeek
+    if (dayOfWeekError || !dayOfWeekData) {
+      // Fallback to JavaScript calculation if database function fails
+      console.error('Error getting day of week from database:', dayOfWeekError)
+      dayOfWeek = new Date(date + 'T12:00:00').getDay() // Use noon to avoid timezone issues
+    } else {
+      dayOfWeek = dayOfWeekData
+    }
 
     // Get business hours for this day
     const businessHours = await getBusinessHoursForDay(supabase, dayOfWeek)

@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
     const timeDifferenceMs = scheduledTime.getTime() - now.getTime()
     const timeDifferenceMinutes = Math.floor(timeDifferenceMs / (1000 * 60))
 
-    // Check if appointment has passed
+    // Check if appointment has passed (more than 1 hour past)
     if (timeDifferenceMs < -60 * 60 * 1000) { // More than 1 hour past
       return NextResponse.json({
         success: false,
@@ -132,9 +132,26 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Check if trying to check in too early (more than 1 hour before)
+    if (timeDifferenceMs > 60 * 60 * 1000) { // More than 1 hour before
+      const hoursEarly = Math.floor(timeDifferenceMs / (1000 * 60 * 60))
+      const minutesEarly = Math.floor((timeDifferenceMs % (1000 * 60 * 60)) / (1000 * 60))
+      
+      return NextResponse.json({
+        success: false,
+        message: 'Check-in window not yet open',
+        details: {
+          scheduledTime: appointment.scheduled_time,
+          currentTime: now.toISOString(),
+          timeUntilCheckIn: `${hoursEarly}h ${minutesEarly}m`,
+          message: 'You can check in starting 1 hour before your appointment time'
+        }
+      }, { status: 400 })
+    }
+
     // Determine check-in type based on timing
-    // On time: >=15 minutes before appointment OR within 15 minutes after
-    // Late: More than 15 minutes after but less than 1 hour
+    // On time: up to 1 hour before appointment OR within 15 minutes after
+    // Late: More than 15 minutes after but less than 1 hour after
     const isOnTime = timeDifferenceMinutes >= -15 // -15 means 15 minutes past scheduled time
     const checkInTime = now.toISOString()
 
