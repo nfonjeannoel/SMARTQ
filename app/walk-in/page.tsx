@@ -434,35 +434,40 @@ export default function WalkInPage() {
                 <div className="text-center">
                   <div className="text-sm text-gray-600 mb-1">Your Ticket ID</div>
                   <div className="text-3xl font-bold text-gray-900 mb-4">
-                    {response.ticket?.ticketId}
+                    {response.type === 'slot-claimed' ? (response as any).appointment?.ticketId : (response as any).walkIn?.ticketId}
                   </div>
                   
                   <div className="grid grid-cols-1 gap-3 text-left">
                     <div>
                       <span className="text-sm text-gray-600">Name:</span>
-                      <span className="ml-2 font-medium">{response.ticket?.user?.name}</span>
+                      <span className="ml-2 font-medium">
+                        {response.type === 'slot-claimed' ? (response as any).appointment?.user?.name : (response as any).walkIn?.user?.name}
+                      </span>
                     </div>
                     <div>
                       <span className="text-sm text-gray-600">Contact:</span>
                       <span className="ml-2 font-medium">
-                        {response.ticket?.user?.email || response.ticket?.user?.phone}
+                        {response.type === 'slot-claimed' 
+                          ? ((response as any).appointment?.user?.email || (response as any).appointment?.user?.phone)
+                          : ((response as any).walkIn?.user?.email || (response as any).walkIn?.user?.phone)
+                        }
                       </span>
                     </div>
                     
-                    {response.type === 'slot-claimed' && response.ticket?.claimedSlot && (
+                    {response.type === 'slot-claimed' && (response as any).appointment?.scheduledTime && (
                       <div>
                         <span className="text-sm text-gray-600">Appointment Time:</span>
                         <span className="ml-2 font-medium text-green-700">
-                          {formatTime(response.ticket.claimedSlot.scheduledTime)}
+                          {formatTime((response as any).appointment.scheduledTime)}
                         </span>
                       </div>
                     )}
                     
-                    {response.type === 'walk-in-created' && response.ticket?.walkInTime && (
+                    {response.type === 'walk-in-created' && (response as any).walkIn?.checkInTime && (
                       <div>
                         <span className="text-sm text-gray-600">Check-in Time:</span>
                         <span className="ml-2 font-medium">
-                          {formatTime(response.ticket.walkInTime)}
+                          {formatTime((response as any).walkIn.checkInTime)}
                         </span>
                       </div>
                     )}
@@ -481,7 +486,7 @@ export default function WalkInPage() {
                     <div>
                       <span className="text-gray-600">Your Position:</span>
                       <span className="ml-2 font-bold text-blue-600">
-                        #{response.queue.position}
+                        #{response.queue.totalAhead ? response.queue.totalAhead + 1 : 1}
                       </span>
                     </div>
                     <div>
@@ -543,7 +548,7 @@ export default function WalkInPage() {
               <Alert className="border-amber-200 bg-amber-50">
                 <AlertTriangle className="h-4 w-4 text-amber-600" />
                 <AlertDescription className="text-amber-800">
-                  <strong>Please save your ticket ID:</strong> {response.ticket?.ticketId}
+                  <strong>Please save your ticket ID:</strong> {response.type === 'slot-claimed' ? (response as any).appointment?.ticketId : (response as any).walkIn?.ticketId}
                   <br />
                   You'll need this to check your status or when you're called for service.
                 </AlertDescription>
