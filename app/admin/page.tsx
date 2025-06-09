@@ -101,7 +101,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
-  const [activeTab, setActiveTab] = useState<'queue' | 'appointments' | 'settings'>('queue')
+  const [activeTab, setActiveTab] = useState<'queue' | 'appointments' | 'settings' | 'user-lookup'>('queue')
   
   // Appointments state
   const [appointmentsData, setAppointmentsData] = useState<AppointmentsData | null>(null)
@@ -109,6 +109,11 @@ export default function AdminDashboard() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [appointmentsLoading, setAppointmentsLoading] = useState(false)
   const [appointmentDetailsLoading, setAppointmentDetailsLoading] = useState(false)
+
+  // User lookup state
+  const [userLookupQuery, setUserLookupQuery] = useState('')
+  const [userLookupResults, setUserLookupResults] = useState<any>(null)
+  const [userLookupLoading, setUserLookupLoading] = useState(false)
 
   // Check admin session
   const checkSession = useCallback(async () => {
@@ -406,6 +411,41 @@ export default function AdminDashboard() {
     }
   }, [session, activeTab, selectedDate, fetchAppointments])
 
+  // User lookup function
+  const searchUser = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setUserLookupResults(null)
+      return
+    }
+
+    setUserLookupLoading(true)
+    try {
+      const response = await fetch('/api/admin/search-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ query: query.trim() })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setUserLookupResults(data.data)
+      } else {
+        showMessage('error', data.message || 'Failed to search for user')
+        setUserLookupResults(null)
+      }
+    } catch (error) {
+      console.error('User search failed:', error)
+      showMessage('error', 'Failed to search for user')
+      setUserLookupResults(null)
+    } finally {
+      setUserLookupLoading(false)
+    }
+  }, [showMessage])
+
   // Loading state
   if (loading) {
     return (
@@ -492,6 +532,16 @@ export default function AdminDashboard() {
                 }`}
               >
                 Business Hours
+              </button>
+              <button
+                onClick={() => setActiveTab('user-lookup')}
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'user-lookup'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                }`}
+              >
+                User Lookup
               </button>
             </nav>
           </div>
@@ -892,6 +942,261 @@ export default function AdminDashboard() {
 
         {activeTab === 'settings' && (
           <BusinessHoursManager />
+        )}
+
+        {activeTab === 'user-lookup' && (
+          <div>
+            <div className="bg-white rounded-lg shadow p-6 mb-8">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Find User by Email or Phone</h3>
+                             <p className="text-sm text-gray-600 mb-4">
+                 Search for a user by their email address or phone number to find their appointments and user ID.
+               </p>
+               <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                 <h4 className="text-sm font-medium text-blue-900 mb-2">Search Tips:</h4>
+                 <ul className="text-sm text-blue-800 space-y-1">
+                   <li>• Enter the complete email address or phone number for best results</li>
+                   <li>• Partial matches are supported (e.g., search "john" to find "john@example.com")</li>
+                   <li>• Phone numbers can include or exclude formatting (e.g., "+1234567890" or "1234567890")</li>
+                   <li>• Search results show recent appointments and walk-ins from the last 30 days</li>
+                 </ul>
+               </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="user-search" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email or Phone Number
+                  </label>
+                                     <div className="flex space-x-3">
+                     <div className="flex-1 relative">
+                       <input
+                         id="user-search"
+                         type="text"
+                         value={userLookupQuery}
+                         onChange={(e) => setUserLookupQuery(e.target.value)}
+                         placeholder="Enter email address or phone number..."
+                         className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                         onKeyPress={(e) => {
+                           if (e.key === 'Enter') {
+                             searchUser(userLookupQuery)
+                           }
+                         }}
+                       />
+                       {userLookupQuery && (
+                         <button
+                           onClick={() => {
+                             setUserLookupQuery('')
+                             setUserLookupResults(null)
+                           }}
+                           className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                           title="Clear search"
+                         >
+                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                           </svg>
+                         </button>
+                       )}
+                     </div>
+                    <button
+                      onClick={() => searchUser(userLookupQuery)}
+                      disabled={userLookupLoading || !userLookupQuery.trim()}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-md font-medium transition-colors"
+                    >
+                      {userLookupLoading ? (
+                        <span className="flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Searching...
+                        </span>
+                      ) : (
+                        'Search'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+                         {/* Search Results */}
+             {userLookupResults && (
+               <div className="bg-white rounded-lg shadow p-6">
+                 <div className="flex items-center justify-between mb-6">
+                   <h3 className="text-lg font-medium text-gray-900">Search Results</h3>
+                   <div className="text-sm text-gray-500">
+                     Found {userLookupResults.total} user(s) for "{userLookupResults.query}"
+                   </div>
+                 </div>
+                
+                {userLookupResults.users && userLookupResults.users.length > 0 ? (
+                  <div className="space-y-6">
+                    {userLookupResults.users.map((user: any) => (
+                      <div key={user.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* User Information */}
+                          <div>
+                            <h4 className="text-md font-medium text-gray-900 mb-3">User Information</h4>
+                            <div className="space-y-2">
+                              <div className="flex items-center">
+                                <span className="text-sm text-gray-500">User ID:</span>
+                                <div className="flex items-center ml-2">
+                                  <p className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                                    {user.id}
+                                  </p>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(user.id)
+                                      showMessage('success', 'User ID copied to clipboard')
+                                    }}
+                                    className="ml-2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                                    title="Copy User ID"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                              <div>
+                                <span className="text-sm text-gray-500">Name:</span>
+                                <p className="text-sm font-medium text-gray-900 inline-block ml-2">{user.name}</p>
+                              </div>
+                              {user.phone && (
+                                <div>
+                                  <span className="text-sm text-gray-500">Phone:</span>
+                                  <p className="text-sm text-gray-900 inline-block ml-2">{user.phone}</p>
+                                </div>
+                              )}
+                              {user.email && (
+                                <div>
+                                  <span className="text-sm text-gray-500">Email:</span>
+                                  <p className="text-sm text-gray-900 inline-block ml-2">{user.email}</p>
+                                </div>
+                              )}
+                              <div>
+                                <span className="text-sm text-gray-500">Created:</span>
+                                <p className="text-sm text-gray-900 inline-block ml-2">
+                                  {new Date(user.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Recent Appointments */}
+                          <div>
+                            <h4 className="text-md font-medium text-gray-900 mb-3">Recent Appointments</h4>
+                            {user.appointments && user.appointments.length > 0 ? (
+                              <div className="space-y-2 max-h-48 overflow-y-auto">
+                                {user.appointments.map((appointment: any) => (
+                                  <div key={appointment.id} className="bg-gray-50 p-3 rounded-md">
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <p className="text-sm font-medium text-gray-900">
+                                          {appointment.ticket_id || appointment.id.substring(0, 8)}
+                                        </p>
+                                        <p className="text-xs text-gray-600">
+                                          {new Date(appointment.scheduled_time).toLocaleDateString()} at{' '}
+                                          {new Date(appointment.scheduled_time).toLocaleTimeString([], {
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                          })}
+                                        </p>
+                                      </div>
+                                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                        appointment.status === 'served'
+                                          ? 'bg-green-100 text-green-800'
+                                          : appointment.status === 'arrived'
+                                          ? 'bg-blue-100 text-blue-800'
+                                          : appointment.status === 'booked'
+                                          ? 'bg-yellow-100 text-yellow-800'
+                                          : appointment.status === 'cancelled'
+                                          ? 'bg-red-100 text-red-800'
+                                          : 'bg-gray-100 text-gray-800'
+                                      }`}>
+                                        {appointment.status}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500">No appointments found</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Walk-ins if any */}
+                        {user.walk_ins && user.walk_ins.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <h4 className="text-md font-medium text-gray-900 mb-3">Recent Walk-ins</h4>
+                            <div className="space-y-2 max-h-32 overflow-y-auto">
+                              {user.walk_ins.map((walkIn: any) => (
+                                <div key={walkIn.id} className="bg-gray-50 p-3 rounded-md">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <p className="text-sm font-medium text-gray-900">
+                                        {walkIn.ticket_id || walkIn.id.substring(0, 8)}
+                                      </p>
+                                      <p className="text-xs text-gray-600">
+                                        {new Date(walkIn.check_in_time).toLocaleDateString()} at{' '}
+                                        {new Date(walkIn.check_in_time).toLocaleTimeString([], {
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        })}
+                                      </p>
+                                    </div>
+                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                      walkIn.status === 'served'
+                                        ? 'bg-green-100 text-green-800'
+                                        : walkIn.status === 'pending'
+                                        ? 'bg-yellow-100 text-yellow-800'
+                                        : 'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {walkIn.status}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                                 ) : (
+                   <div className="text-center py-12">
+                     <div className="text-gray-400 mb-4">
+                       <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                       </svg>
+                     </div>
+                     <p className="text-lg text-gray-500 mb-2">No users found</p>
+                     <p className="text-sm text-gray-400 mb-4">
+                       No users match your search for "{userLookupResults.query}"
+                     </p>
+                     <div className="bg-gray-50 p-4 rounded-lg max-w-md mx-auto">
+                       <h4 className="text-sm font-medium text-gray-700 mb-2">Try:</h4>
+                       <ul className="text-sm text-gray-600 space-y-1 text-left">
+                         <li>• Checking the spelling of the email or phone number</li>
+                         <li>• Using a partial match (first few characters)</li>
+                         <li>• Removing any special formatting from phone numbers</li>
+                         <li>• Searching with an alternative contact method</li>
+                       </ul>
+                     </div>
+                   </div>
+                 )}
+              </div>
+            )}
+
+            {/* Initial state */}
+            {!userLookupResults && !userLookupLoading && (
+              <div className="bg-gray-50 rounded-lg p-8 text-center">
+                <div className="text-gray-400 mb-4">
+                  <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <p className="text-gray-500">Enter an email address or phone number to search for users.</p>
+              </div>
+            )}
+          </div>
         )}
       </main>
 
