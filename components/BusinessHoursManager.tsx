@@ -27,6 +27,7 @@ export default function BusinessHoursManager() {
   const [businessHours, setBusinessHours] = useState<BusinessHours[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [isDefaultData, setIsDefaultData] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   // Show message helper
@@ -45,7 +46,12 @@ export default function BusinessHoursManager() {
       const data = await response.json()
       
       if (data.success) {
-        setBusinessHours(data.business_hours || [])
+        const hours = data.business_hours || []
+        setBusinessHours(hours)
+        
+        // Check if we're showing default data (temporary IDs indicate default data)
+        const hasDefaultData = hours.length > 0 && hours.some((h: BusinessHours) => h.id.startsWith('temp-'))
+        setIsDefaultData(hasDefaultData)
       } else {
         showMessage('error', data.message || 'Failed to fetch business hours')
       }
@@ -72,9 +78,13 @@ export default function BusinessHoursManager() {
       const data = await response.json()
       
       if (data.success) {
-        showMessage('success', 'Business hours updated successfully')
+        showMessage('success', 'Business hours saved successfully')
+        // Refresh to get actual data with real IDs
+        setTimeout(() => {
+          fetchBusinessHours()
+        }, 1000)
       } else {
-        showMessage('error', data.message || 'Failed to update business hours')
+        showMessage('error', data.message || 'Failed to save business hours')
       }
     } catch (error) {
       console.error('Failed to save business hours:', error)
@@ -144,6 +154,22 @@ export default function BusinessHoursManager() {
           )}
         </Button>
       </div>
+
+      {isDefaultData && (
+        <div className="mb-4 p-4 rounded-md bg-blue-50 border border-blue-200">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <div className="w-5 h-5 text-blue-600">ℹ️</div>
+            </div>
+            <div className="ml-3">
+              <h4 className="text-sm font-medium text-blue-800">Default Business Hours</h4>
+              <p className="text-sm text-blue-700 mt-1">
+                These are default business hours since none have been configured yet. You can customize them below and click "Save Changes" to store your preferences.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {message && (
         <div className={`mb-4 p-3 rounded-md ${

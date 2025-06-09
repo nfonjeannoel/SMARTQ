@@ -12,7 +12,9 @@ import {
   CheckCircle, 
   Info,
   Phone,
-  Mail
+  Mail,
+  Activity,
+  Eye
 } from "lucide-react"
 
 export default function LandingPage() {
@@ -55,7 +57,7 @@ export default function LandingPage() {
         </div>
 
         {/* Main Actions */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
+        <div className="grid md:grid-cols-4 gap-6 mb-12">
           {/* Book Appointment */}
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <Link href="/book" className="block h-full">
@@ -120,6 +122,30 @@ export default function LandingPage() {
                 </Button>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                   Get in line for next available slot
+                </p>
+              </CardContent>
+            </Link>
+          </Card>
+
+          {/* Public Details */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Link href="/public-details" className="block h-full">
+              <CardHeader className="text-center">
+                <div className="mx-auto h-12 w-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-4">
+                  <Activity className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <CardTitle className="text-xl">Queue Status</CardTitle>
+                <CardDescription>
+                  Check current wait times and facility info
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-center">
+                <Button variant="outline" className="w-full" size="lg">
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Details
+                </Button>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  See how busy we are right now
                 </p>
               </CardContent>
             </Link>

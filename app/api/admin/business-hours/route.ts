@@ -33,6 +33,28 @@ export async function GET() {
       )
     }
 
+    // If no business hours exist, return default template for all 7 days
+    if (!data || data.length === 0) {
+      const defaultBusinessHours = []
+      for (let day = 0; day <= 6; day++) {
+        defaultBusinessHours.push({
+          id: `temp-${day}`, // Temporary ID for frontend use
+          day_of_week: day,
+          is_open: day >= 1 && day <= 5, // Monday-Friday open, weekends closed
+          open_time: day >= 1 && day <= 5 ? '09:00:00' : null,
+          close_time: day >= 1 && day <= 5 ? '17:00:00' : null,
+          break_start: null,
+          break_end: null,
+          slot_duration: 15
+        })
+      }
+      
+      return NextResponse.json({
+        success: true,
+        business_hours: defaultBusinessHours
+      })
+    }
+
     return NextResponse.json({
       success: true,
       business_hours: data || []
@@ -104,46 +126,49 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Update each business hours record
-    const updates = []
+    // Use upsert to insert or update each business hours record
+    const upsertData = []
     for (const hours of business_hours) {
-      const updateData: Partial<BusinessHours> = {
+      const recordData = {
+        day_of_week: hours.day_of_week,
         is_open: hours.is_open,
         slot_duration: hours.slot_duration
       }
 
       if (hours.is_open) {
-        updateData.open_time = hours.open_time
-        updateData.close_time = hours.close_time
-        updateData.break_start = hours.break_start || null
-        updateData.break_end = hours.break_end || null
+        recordData.open_time = hours.open_time
+        recordData.close_time = hours.close_time
+        recordData.break_start = hours.break_start || null
+        recordData.break_end = hours.break_end || null
       } else {
-        updateData.open_time = null
-        updateData.close_time = null
-        updateData.break_start = null
-        updateData.break_end = null
+        recordData.open_time = null
+        recordData.close_time = null
+        recordData.break_start = null
+        recordData.break_end = null
       }
 
-      const { error } = await supabase
-        .from('business_hours')
-        .update(updateData)
-        .eq('day_of_week', hours.day_of_week)
+      upsertData.push(recordData)
+    }
 
-      if (error) {
-        console.error(`Error updating day ${hours.day_of_week}:`, error)
-        return NextResponse.json(
-          { success: false, message: `Failed to update business hours for day ${hours.day_of_week}` },
-          { status: 500 }
-        )
-      }
+    // Use upsert to handle both insert and update
+    const { error } = await supabase
+      .from('business_hours')
+      .upsert(upsertData, { 
+        onConflict: 'day_of_week',
+        ignoreDuplicates: false 
+      })
 
-      updates.push(hours.day_of_week)
+    if (error) {
+      console.error('Error upserting business hours:', error)
+      return NextResponse.json(
+        { success: false, message: 'Failed to save business hours' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Business hours updated successfully',
-      updated_days: updates
+      message: 'Business hours saved successfully'
     })
   } catch (error) {
     console.error('Business hours update error:', error)
