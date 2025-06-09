@@ -26,6 +26,57 @@ interface QueueItem {
   isNext?: boolean
 }
 
+interface AppointmentUser {
+  id: string
+  name: string
+  phone?: string
+  email?: string
+  created_at?: string
+}
+
+interface Appointment {
+  id: string
+  date: string
+  scheduled_time: string
+  status: string
+  ticket_id?: string
+  created_at: string
+  updated_at: string
+  users: AppointmentUser
+}
+
+interface AppointmentStats {
+  total: number
+  booked: number
+  arrived: number
+  served: number
+  noShow: number
+  cancelled: number
+}
+
+interface WalkInStats {
+  total: number
+  pending: number
+  arrived: number
+  served: number
+  cancelled: number
+}
+
+interface AppointmentsData {
+  appointments: Appointment[]
+  walkIns: any[]
+  date: string
+  stats: {
+    appointments: AppointmentStats
+    walkIns: WalkInStats
+    combined: {
+      total: number
+      completed: number
+      pending: number
+    }
+  }
+}
+
 interface AdminSession {
   authenticated: boolean
   email?: string
@@ -50,7 +101,14 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
-  const [activeTab, setActiveTab] = useState<'queue' | 'settings'>('queue')
+  const [activeTab, setActiveTab] = useState<'queue' | 'appointments' | 'settings'>('queue')
+  
+  // Appointments state
+  const [appointmentsData, setAppointmentsData] = useState<AppointmentsData | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0])
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+  const [appointmentsLoading, setAppointmentsLoading] = useState(false)
+  const [appointmentDetailsLoading, setAppointmentDetailsLoading] = useState(false)
 
   // Check admin session
   const checkSession = useCallback(async () => {
@@ -133,6 +191,66 @@ export default function AdminDashboard() {
       }))
     }
       }, [showMessage])
+
+  // Fetch appointments for a specific date
+  const fetchAppointments = useCallback(async (date: string = selectedDate) => {
+    setAppointmentsLoading(true)
+    try {
+      const response = await fetch(`/api/admin/appointments?date=${date}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        cache: 'no-cache'
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch appointments data')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setAppointmentsData(data.data)
+      } else {
+        showMessage('error', data.error || 'Failed to fetch appointments')
+      }
+    } catch (error) {
+      console.error('Failed to fetch appointments:', error)
+      showMessage('error', 'Failed to fetch appointments data')
+    } finally {
+      setAppointmentsLoading(false)
+    }
+  }, [selectedDate, showMessage])
+
+  // Fetch appointment details
+  const fetchAppointmentDetails = async (appointmentId: string) => {
+    setAppointmentDetailsLoading(true)
+    try {
+      const response = await fetch(`/api/admin/appointments/${appointmentId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        cache: 'no-cache'
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch appointment details')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setSelectedAppointment(data.data.appointment)
+      } else {
+        showMessage('error', data.error || 'Failed to fetch appointment details')
+      }
+    } catch (error) {
+      console.error('Failed to fetch appointment details:', error)
+      showMessage('error', 'Failed to fetch appointment details')
+    } finally {
+      setAppointmentDetailsLoading(false)
+    }
+  }
 
   // Mark patient as arrived
   const markAsArrived = async (ticketId: string, ticketType: 'appointment' | 'walk-in') => {
@@ -281,6 +399,13 @@ export default function AdminDashboard() {
     }
   }, [session, fetchQueue])
 
+  // Fetch appointments when appointments tab is active or date changes
+  useEffect(() => {
+    if (session?.authenticated && activeTab === 'appointments') {
+      fetchAppointments(selectedDate)
+    }
+  }, [session, activeTab, selectedDate, fetchAppointments])
+
   // Loading state
   if (loading) {
     return (
@@ -324,7 +449,7 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                Logged in as: <span className="font-medium">{session.email}</span>
+                Logged in as admin
               </span>
               <button
                 onClick={logout}
@@ -347,6 +472,16 @@ export default function AdminDashboard() {
                 }`}
               >
                 Queue Management
+              </button>
+              <button
+                onClick={() => setActiveTab('appointments')}
+                className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'appointments'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                }`}
+              >
+                Appointments
               </button>
               <button
                 onClick={() => setActiveTab('settings')}
@@ -558,10 +693,391 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {activeTab === 'appointments' && (
+          <div>
+            {/* Date Selector and Stats */}
+            <div className="mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {/* Date Selector */}
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Select Date</h3>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <button
+                    onClick={() => fetchAppointments(selectedDate)}
+                    disabled={appointmentsLoading}
+                    className="w-full mt-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-md font-medium transition-colors"
+                  >
+                    {appointmentsLoading ? (
+                      <span className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Loading...
+                      </span>
+                    ) : (
+                      'Load Appointments'
+                    )}
+                  </button>
+                </div>
+
+                {/* Appointment Stats */}
+                {appointmentsData && (
+                  <>
+                    <div className="bg-white rounded-lg shadow p-6">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">Appointments</h3>
+                      <div className="space-y-2">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {appointmentsData.stats.appointments.total}
+                        </div>
+                        <div className="text-sm text-gray-600">Total Appointments</div>
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <div>Booked: {appointmentsData.stats.appointments.booked}</div>
+                          <div>Served: {appointmentsData.stats.appointments.served}</div>
+                          <div>No-show: {appointmentsData.stats.appointments.noShow}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow p-6">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">Walk-ins</h3>
+                      <div className="space-y-2">
+                        <div className="text-2xl font-bold text-green-600">
+                          {appointmentsData.stats.walkIns.total}
+                        </div>
+                        <div className="text-sm text-gray-600">Total Walk-ins</div>
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <div>Pending: {appointmentsData.stats.walkIns.pending}</div>
+                          <div>Served: {appointmentsData.stats.walkIns.served}</div>
+                          <div>Cancelled: {appointmentsData.stats.walkIns.cancelled}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow p-6">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">Combined</h3>
+                      <div className="space-y-2">
+                        <div className="text-2xl font-bold text-purple-600">
+                          {appointmentsData.stats.combined.total}
+                        </div>
+                        <div className="text-sm text-gray-600">Total Patients</div>
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <div>Completed: {appointmentsData.stats.combined.completed}</div>
+                          <div>Pending: {appointmentsData.stats.combined.pending}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Appointments List */}
+            {appointmentsData && (
+              <div className="bg-white rounded-lg shadow">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Appointments for {new Date(appointmentsData.date).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {appointmentsData.appointments.length} appointment{appointmentsData.appointments.length !== 1 ? 's' : ''} scheduled
+                  </p>
+                </div>
+                
+                <div className="overflow-hidden">
+                  {appointmentsData.appointments.length === 0 ? (
+                    <div className="px-6 py-8 text-center text-gray-500">
+                      <div className="text-4xl mb-2">📅</div>
+                      <p className="text-lg font-medium">No appointments for this date</p>
+                      <p className="text-sm">Select a different date to view appointments</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-200">
+                      {appointmentsData.appointments.map((appointment) => (
+                        <div
+                          key={appointment.id}
+                          className="px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => fetchAppointmentDetails(appointment.id)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div className="flex-shrink-0">
+                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg ${
+                                  appointment.status === 'booked' ? 'bg-blue-600' :
+                                  appointment.status === 'arrived' ? 'bg-yellow-600' :
+                                  appointment.status === 'served' ? 'bg-green-600' :
+                                  appointment.status === 'no_show' ? 'bg-red-600' :
+                                  'bg-gray-600'
+                                }`}>
+                                  A
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-lg font-medium text-gray-900">
+                                  {appointment.users.name}
+                                  {appointment.ticket_id && (
+                                    <span className="ml-2 text-sm font-normal text-gray-600">
+                                      ({appointment.ticket_id})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  {formatTime(appointment.scheduled_time)}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {appointment.users.phone && (
+                                    <span className="mr-4">📞 {appointment.users.phone}</span>
+                                  )}
+                                  {appointment.users.email && (
+                                    <span>✉️ {appointment.users.email}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center space-x-3">
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                appointment.status === 'booked' ? 'bg-blue-100 text-blue-800' :
+                                appointment.status === 'arrived' ? 'bg-yellow-100 text-yellow-800' :
+                                appointment.status === 'served' ? 'bg-green-100 text-green-800' :
+                                appointment.status === 'no_show' ? 'bg-red-100 text-red-800' :
+                                appointment.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {appointment.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  fetchAppointmentDetails(appointment.id)
+                                }}
+                                disabled={appointmentDetailsLoading}
+                                className="text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed font-medium text-sm flex items-center"
+                              >
+                                {appointmentDetailsLoading ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
+                                    Loading...
+                                  </>
+                                ) : (
+                                  'View Details →'
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Loading State */}
+            {appointmentsLoading && !appointmentsData && (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading appointments...</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'settings' && (
           <BusinessHoursManager />
         )}
       </main>
+
+      {/* Appointment Details Modal */}
+      {(selectedAppointment || appointmentDetailsLoading) && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">Appointment Details</h3>
+              <button
+                onClick={() => {
+                  setSelectedAppointment(null)
+                  setAppointmentDetailsLoading(false)
+                }}
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            
+            {appointmentDetailsLoading ? (
+              <div className="p-12 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading appointment details...</p>
+              </div>
+            ) : selectedAppointment ? (
+              <div className="p-6 space-y-6">
+                {/* Basic Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Patient Information</h4>
+                  <div className="space-y-2">
+                    <div>
+                      <span className="text-sm text-gray-500">Name:</span>
+                      <p className="text-sm font-medium text-gray-900">{selectedAppointment.users.name}</p>
+                    </div>
+                    {selectedAppointment.users.phone && (
+                      <div>
+                        <span className="text-sm text-gray-500">Phone:</span>
+                        <p className="text-sm text-gray-900">{selectedAppointment.users.phone}</p>
+                      </div>
+                    )}
+                    {selectedAppointment.users.email && (
+                      <div>
+                        <span className="text-sm text-gray-500">Email:</span>
+                        <p className="text-sm text-gray-900">{selectedAppointment.users.email}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Appointment Details</h4>
+                  <div className="space-y-2">
+                    <div>
+                      <span className="text-sm text-gray-500">Date:</span>
+                      <p className="text-sm text-gray-900">
+                        {new Date(selectedAppointment.date).toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-500">Time:</span>
+                      <p className="text-sm text-gray-900">{formatTime(selectedAppointment.scheduled_time)}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-500">Status:</span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ml-2 ${
+                        selectedAppointment.status === 'booked' ? 'bg-blue-100 text-blue-800' :
+                        selectedAppointment.status === 'arrived' ? 'bg-yellow-100 text-yellow-800' :
+                        selectedAppointment.status === 'served' ? 'bg-green-100 text-green-800' :
+                        selectedAppointment.status === 'no_show' ? 'bg-red-100 text-red-800' :
+                        selectedAppointment.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {selectedAppointment.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </span>
+                    </div>
+                    {selectedAppointment.ticket_id && (
+                      <div>
+                        <span className="text-sm text-gray-500">Ticket ID:</span>
+                        <p className="text-sm text-gray-900 font-mono">{selectedAppointment.ticket_id}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Timeline</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                    <div>
+                      <p className="text-sm text-gray-900">Appointment Created</p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(selectedAppointment.created_at).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {selectedAppointment.updated_at !== selectedAppointment.created_at && (
+                    <div className="flex items-center space-x-3">
+                      <div className="w-2 h-2 bg-yellow-600 rounded-full"></div>
+                      <div>
+                        <p className="text-sm text-gray-900">Last Updated</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(selectedAppointment.updated_at).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-2 h-2 rounded-full ${
+                      selectedAppointment.status === 'served' ? 'bg-green-600' :
+                      selectedAppointment.status === 'arrived' ? 'bg-yellow-600' :
+                      selectedAppointment.status === 'no_show' ? 'bg-red-600' :
+                      selectedAppointment.status === 'cancelled' ? 'bg-gray-600' :
+                      'bg-blue-600'
+                    }`}></div>
+                    <div>
+                      <p className="text-sm text-gray-900">
+                        Scheduled for {formatTime(selectedAppointment.scheduled_time)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(selectedAppointment.scheduled_time).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Patient History */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Patient History</h4>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="text-sm text-gray-600">
+                    <div>Patient since: {new Date(selectedAppointment.users.created_at || selectedAppointment.created_at).toLocaleDateString('en-US', {
+                      month: 'long',
+                      year: 'numeric'
+                    })}</div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Patient ID: {selectedAppointment.users.id}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            ) : null}
+            
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => {
+                  setSelectedAppointment(null)
+                  setAppointmentDetailsLoading(false)
+                }}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 
