@@ -355,12 +355,11 @@ export default function CheckInPage() {
                       <div>
                         <strong>Original Appointment:</strong> {formatTime(response.walkIn.originalAppointment.scheduledTime)}
                         <br />
-                        <strong>Check-In Time:</strong> {formatTime(response.walkIn.checkInTime            )}
-          </div>
-        )}
-        </div>
-      </main>
-    </div>
+                        <strong>Check-In Time:</strong> {formatTime(response.walkIn.checkInTime)}
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 {/* Instructions */}
                 {response.instructions && (
@@ -434,7 +433,8 @@ export default function CheckInPage() {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      </main>
     </div>
   )
 } 
