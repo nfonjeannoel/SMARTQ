@@ -76,6 +76,14 @@ export function BookingForm({ onBookingComplete, onSubmit, isSubmitting = false,
     setErrors(prev => ({ ...prev, submit: undefined }))
   }, [step])
 
+  // Auto-select today's date when entering datetime step
+  useEffect(() => {
+    if (step === 'datetime' && !bookingData.date) {
+      const today = new Date()
+      setBookingData(prev => ({ ...prev, date: today }))
+    }
+  }, [step, bookingData.date])
+
   // Form validation
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
@@ -400,7 +408,6 @@ export function BookingForm({ onBookingComplete, onSubmit, isSubmitting = false,
               <Calendar
                 selectedDate={bookingData.date}
                 onDateSelect={handleDateSelect}
-                minDate={new Date()}
                 disableWeekends={false}
               />
             </div>

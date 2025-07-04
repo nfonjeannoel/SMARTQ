@@ -102,18 +102,19 @@ export async function POST(request: NextRequest) {
     const scheduledTime = new Date(`${date}T${time}:00`)
     const now = new Date()
 
+    // Remove past date validation to allow booking for any date/time
     // Validate appointment is not in the past (with 15-minute buffer)
-    const minimumTime = new Date(now.getTime() + 15 * 60 * 1000) // 15 minutes from now
-    if (scheduledTime < minimumTime) {
-      return NextResponse.json({
-        success: false,
-        message: 'Appointment must be scheduled at least 15 minutes in the future',
-        details: {
-          requestedTime: scheduledTime.toISOString(),
-          minimumTime: minimumTime.toISOString()
-        }
-      }, { status: 400 })
-    }
+    // const minimumTime = new Date(now.getTime() + 15 * 60 * 1000) // 15 minutes from now
+    // if (scheduledTime < minimumTime) {
+    //   return NextResponse.json({
+    //     success: false,
+    //     message: 'Appointment must be scheduled at least 15 minutes in the future',
+    //     details: {
+    //       requestedTime: scheduledTime.toISOString(),
+    //       minimumTime: minimumTime.toISOString()
+    //     }
+    //   }, { status: 400 })
+    // }
 
     // Validate business hours and appointment time
     const appointmentValidation = await validateAppointmentTime(scheduledTime)

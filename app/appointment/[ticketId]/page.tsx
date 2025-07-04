@@ -31,6 +31,7 @@ interface AppointmentDetails {
   time: string
   scheduledTime: string
   status: string
+  queueNumber?: number
   queuePosition?: number
   estimatedWait?: string
 }
@@ -224,12 +225,23 @@ export default function AppointmentDetailsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Ticket ID */}
+                {/* Ticket ID & Queue Number */}
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-blue-900">Ticket ID</p>
                       <p className="text-xl font-mono font-bold text-blue-600">{appointment.ticketId}</p>
+                      {appointment.queueNumber && appointment.status === 'arrived' && (
+                        <div className="mt-2">
+                          <p className="text-sm font-medium text-green-900">Queue Number</p>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-lg font-bold bg-green-600 text-white">
+                              #{appointment.queueNumber}
+                            </span>
+                            <span className="text-sm text-green-700">Your position in line</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-blue-700">Status</p>

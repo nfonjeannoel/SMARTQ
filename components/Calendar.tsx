@@ -15,7 +15,7 @@ interface CalendarProps {
 export function Calendar({
   selectedDate,
   onDateSelect,
-  minDate = new Date(),
+  minDate,
   maxDate,
   disableWeekends = false,
   className = ''
@@ -27,11 +27,11 @@ export function Calendar({
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // Ensure minDate is at least today
-  const effectiveMinDate = new Date(Math.max(minDate.getTime(), today.getTime()))
+  // Allow any minDate, but default to 1 year ago if none provided
+  const effectiveMinDate = minDate || new Date(today.getFullYear() - 1, today.getMonth(), today.getDate())
 
-  // Set default maxDate to 3 months from now if not provided
-  const effectiveMaxDate = maxDate || new Date(today.getFullYear(), today.getMonth() + 3, 0)
+  // Extend default maxDate to 2 years from now if not provided
+  const effectiveMaxDate = maxDate || new Date(today.getFullYear() + 2, today.getMonth(), today.getDate())
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -49,12 +49,16 @@ export function Calendar({
   }
 
   const isDateDisabled = (date: Date) => {
-    // Before min date or after max date
-    if (date < effectiveMinDate || date > effectiveMaxDate) {
+    // Only disable dates before today (past dates)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    date.setHours(0, 0, 0, 0)
+    
+    if (date < today) {
       return true
     }
 
-    // Weekend check
+    // Weekend check (if enabled)
     if (disableWeekends && (date.getDay() === 0 || date.getDay() === 6)) {
       return true
     }

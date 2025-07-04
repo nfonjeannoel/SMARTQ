@@ -22,11 +22,20 @@ import {
   Globe
 } from "lucide-react"
 
+interface QueueItem {
+  queue_number?: number
+  type: 'appointment' | 'walk_in'
+  ticket_id: string
+  status: string
+}
+
 interface QueueStatus {
   totalInQueue: number
   appointmentsInQueue: number
   walkInsInQueue: number
   estimatedWait: string
+  nextTickets?: QueueItem[]
+  nowServing?: QueueItem
   queueStats: {
     totalToday: number
     served: number
@@ -237,7 +246,7 @@ const PublicDetails: React.FC = () => {
           </div>
 
           {/* Detailed Queue Breakdown */}
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
@@ -263,6 +272,57 @@ const PublicDetails: React.FC = () => {
               </div>
               <div className="text-xs text-orange-600 dark:text-orange-400">
                 Walk-in patients waiting
+              </div>
+            </div>
+          </div>
+
+          {/* Now Serving & Next Numbers */}
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 p-6 rounded-lg mb-6">
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 text-center">
+              Queue Numbers
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Now Serving */}
+              <div className="text-center">
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                  Now Serving
+                </div>
+                {queue.nowServing?.queue_number ? (
+                  <div className="inline-flex items-center px-6 py-3 rounded-full text-2xl font-bold bg-green-600 text-white">
+                    #{queue.nowServing.queue_number}
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center px-6 py-3 rounded-full text-lg bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                    No one currently
+                  </div>
+                )}
+              </div>
+
+              {/* Next Up */}
+              <div className="text-center">
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                  Next Up
+                </div>
+                {queue.nextTickets && queue.nextTickets.length > 0 ? (
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {queue.nextTickets.slice(0, 3).map((ticket, index) => (
+                      <div
+                        key={ticket.ticket_id}
+                        className={`inline-flex items-center px-4 py-2 rounded-full text-lg font-bold ${
+                          index === 0 
+                            ? 'bg-blue-600 text-white' 
+                            : 'bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200'
+                        }`}
+                      >
+                        #{ticket.queue_number}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center px-4 py-2 rounded-full text-sm bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                    Queue is empty
+                  </div>
+                )}
               </div>
             </div>
           </div>

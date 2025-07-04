@@ -37,24 +37,15 @@ function generateTimeSlots(businessHours: any) {
   const [closeHour, closeMinute] = businessHours.close_time.split(':').slice(0, 2).map(Number)
   const slotDuration = businessHours.slot_duration || 15
 
+  // Handle special case for 24-hour operations (00:00 to 23:59)
+  const is24Hour = (openHour === 0 && openMinute === 0 && closeHour === 23 && closeMinute === 59)
+  
   let currentTime = openHour * 60 + openMinute // Convert to minutes
-  const endTime = closeHour * 60 + closeMinute
-
-  // For 24-hour operations, limit to reasonable booking hours (6 AM to 10 PM)
-  if (openHour === 0 && closeHour === 23) {
-    currentTime = 6 * 60 // Start at 6 AM
-    const limitedEndTime = 22 * 60 // End at 10 PM
-    
-    while (currentTime < limitedEndTime) {
-      const hours = Math.floor(currentTime / 60)
-      const minutes = currentTime % 60
-      const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
-      
-      slots.push(timeString)
-      currentTime += slotDuration
-    }
-    
-    return slots
+  let endTime = closeHour * 60 + closeMinute
+  
+  // For 24-hour operations, ensure we generate slots up to 23:59
+  if (is24Hour) {
+    endTime = 24 * 60 - slotDuration // End just before midnight, leaving room for last slot
   }
 
   // Handle break times if they exist
@@ -107,18 +98,18 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Don't allow booking for past dates
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    selectedDate.setHours(0, 0, 0, 0)
+    // Remove restriction: Don't allow booking for past dates
+    // const today = new Date()
+    // today.setHours(0, 0, 0, 0)
+    // selectedDate.setHours(0, 0, 0, 0)
     
-    if (selectedDate < today) {
-      return NextResponse.json({
-        success: true,
-        date,
-        slots: []
-      })
-    }
+    // if (selectedDate < today) {
+    //   return NextResponse.json({
+    //     success: true,
+    //     date,
+    //     slots: []
+    //   })
+    // }
 
     // Get day of week from database to avoid timezone issues
     const { data: dayOfWeekData, error: dayOfWeekError } = await supabase
@@ -176,6 +167,9 @@ export async function GET(request: NextRequest) {
 
     // Filter out past times for today
     const now = new Date()
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    selectedDate.setHours(0, 0, 0, 0)
     const isToday = selectedDate.getTime() === today.getTime()
     
     let availableSlots = allSlots.filter(slot => {
@@ -184,17 +178,17 @@ export async function GET(request: NextRequest) {
         return false
       }
 
-      // If it's today, skip past times (with 15-minute buffer)
-      if (isToday) {
-        const [slotHour, slotMinute] = slot.split(':').map(Number)
-        const slotTime = new Date()
-        slotTime.setHours(slotHour, slotMinute, 0, 0)
-        const minimumTime = new Date(now.getTime() + 15 * 60 * 1000) // 15 minutes from now
-        
-        if (slotTime < minimumTime) {
-          return false
-        }
-      }
+      // Remove past time filtering - allow all times for any date
+      // if (isToday) {
+      //   const [slotHour, slotMinute] = slot.split(':').map(Number)
+      //   const slotTime = new Date(selectedDate)
+      //   slotTime.setHours(slotHour, slotMinute, 0, 0)
+      //   const minimumTime = new Date(now.getTime() + 15 * 60 * 1000) // 15 minutes from now
+      //   
+      //   if (slotTime < minimumTime) {
+      //     return false
+      //   }
+      // }
 
       return true
     })

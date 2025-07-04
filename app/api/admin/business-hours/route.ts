@@ -138,6 +138,13 @@ export async function PUT(request: NextRequest) {
       if (hours.is_open) {
         recordData.open_time = hours.open_time
         recordData.close_time = hours.close_time
+        
+        // Handle 24-hour operation: if both times are 00:00:00, convert to 00:00:00 - 23:59:59
+        if (hours.open_time === '00:00:00' && hours.close_time === '00:00:00') {
+          recordData.open_time = '00:00:00'
+          recordData.close_time = '23:59:59'
+        }
+        
         recordData.break_start = hours.break_start || null
         recordData.break_end = hours.break_end || null
       } else {

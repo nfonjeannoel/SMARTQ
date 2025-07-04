@@ -11,6 +11,7 @@ import BusinessHoursManager from '@/components/BusinessHoursManager'
 interface QueueItem {
   id: string
   ticket_id: string
+  queue_number?: number
   type: 'appointment' | 'walk_in'
   name: string
   phone?: string
@@ -691,10 +692,15 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <div className="text-sm font-medium text-gray-900">
+                            {patient.queue_number && (
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-blue-600 text-white mr-2">
+                                #{patient.queue_number}
+                              </span>
+                            )}
                             {patient.ticket_id}
                             {index === 0 && (
-                              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                Next
+                              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Now Serving
                               </span>
                             )}
                           </div>

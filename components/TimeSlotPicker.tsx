@@ -34,7 +34,43 @@ export function TimeSlotPicker({
   const [businessHours, setBusinessHours] = useState<BusinessHours | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [expandedSection, setExpandedSection] = useState<'morning' | 'afternoon' | 'evening' | null>(null)
+  const [expandedSection, setExpandedSection] = useState<'earlyMorning' | 'morning' | 'afternoon' | 'evening' | null>(null)
+
+  // Process time slots to apply frontend time restrictions
+  const processTimeSlots = (slots: TimeSlot[], date: Date): TimeSlot[] => {
+    const now = new Date()
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const selectedDateOnly = new Date(date)
+    selectedDateOnly.setHours(0, 0, 0, 0)
+    
+    // If the selected date is today, disable past times
+    const isToday = selectedDateOnly.getTime() === today.getTime()
+    
+    if (!isToday) {
+      // For future dates, all times are available (unless already booked)
+      return slots
+    }
+    
+    // For today, disable past times (with 15-minute buffer)
+    const processed = slots.map(slot => {
+      const [slotHour, slotMinute] = slot.time.split(':').map(Number)
+      
+      // Create slot time using the current date to maintain local timezone consistency
+      const slotTime = new Date()
+      slotTime.setHours(slotHour, slotMinute, 0, 0)
+      
+      const minimumTime = new Date(now.getTime() + 15 * 60 * 1000) // 15 minutes from now
+      const shouldDisable = slotTime < minimumTime
+      
+      return {
+        ...slot,
+        disabled: shouldDisable || slot.disabled
+      }
+    })
+    
+    return processed
+  }
 
   // Fetch available time slots from the API
   const fetchAvailableSlots = async (date: Date) => {
@@ -44,7 +80,12 @@ export function TimeSlotPicker({
     setError(null)
 
     try {
-      const dateString = date.toISOString().split('T')[0]
+      // Use local date formatting instead of UTC to avoid timezone issues
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const dateString = `${year}-${month}-${day}`
+      
       const response = await fetch(`/api/available-slots?date=${dateString}`, {
         cache: 'no-cache'
       })
@@ -56,7 +97,9 @@ export function TimeSlotPicker({
       const data = await response.json()
       
       if (data.success) {
-        setTimeSlots(data.slots || [])
+        // Process slots to apply frontend time restrictions
+        const processedSlots = processTimeSlots(data.slots || [], date)
+        setTimeSlots(processedSlots)
         setBusinessHours(data.businessHours || null)
       } else {
         throw new Error(data.error || 'Failed to fetch available slots')
@@ -91,7 +134,7 @@ export function TimeSlotPicker({
     }
   }
 
-  const handleSectionToggle = (section: 'morning' | 'afternoon' | 'evening') => {
+  const handleSectionToggle = (section: 'earlyMorning' | 'morning' | 'afternoon' | 'evening') => {
     setExpandedSection(expandedSection === section ? null : section)
   }
 
@@ -121,6 +164,10 @@ export function TimeSlotPicker({
 
   // Group time slots by time period for better organization
   const groupedSlots = {
+    earlyMorning: timeSlots.filter(slot => {
+      const hour = parseInt(slot.time.split(':')[0])
+      return hour >= 0 && hour < 6
+    }),
     morning: timeSlots.filter(slot => {
       const hour = parseInt(slot.time.split(':')[0])
       return hour >= 6 && hour < 12
@@ -213,6 +260,45 @@ export function TimeSlotPicker({
         </div>
       ) : (
         <div className="space-y-4">
+          {/* Early Morning slots */}
+          {groupedSlots.earlyMorning.length > 0 && (
+            <div className="border border-gray-200 rounded-lg">
+              <button
+                onClick={() => handleSectionToggle('earlyMorning')}
+                className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors rounded-lg"
+              >
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-medium text-gray-700">Early Morning</h4>
+                  <span className="text-xs text-gray-500">({groupedSlots.earlyMorning.length} slots)</span>
+                </div>
+                {expandedSection === 'earlyMorning' ? (
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-gray-500" />
+                )}
+              </button>
+              {expandedSection === 'earlyMorning' && (
+                <div className="px-3 pb-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {groupedSlots.earlyMorning.map(slot => (
+                      <button
+                        key={slot.time}
+                        onClick={() => handleTimeClick(slot)}
+                        disabled={slot.disabled || !slot.available}
+                        className={getSlotClassName(slot)}
+                        title={!slot.available ? 'This time slot is already booked' : 
+                               slot.disabled ? 'This time has passed' : 
+                               'Available for booking'}
+                      >
+                        {getSlotLabel(slot)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Morning slots */}
           {groupedSlots.morning.length > 0 && (
             <div className="border border-gray-200 rounded-lg">

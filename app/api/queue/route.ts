@@ -8,6 +8,7 @@ interface QueueItem {
   type: 'appointment' | 'walk_in'
   id: string
   ticket_id: string
+  queue_number?: number
   name: string
   phone?: string
   email?: string
@@ -60,6 +61,7 @@ export async function GET(request: NextRequest) {
       type: item.type as 'appointment' | 'walk_in',
       id: item.id,
       ticket_id: item.ticket_id,
+      queue_number: item.queue_number,
       name: item.name,
       phone: item.phone,
       email: item.email,

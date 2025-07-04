@@ -156,15 +156,31 @@ export async function POST(request: NextRequest) {
     const checkInTime = now.toISOString()
 
     if (isOnTime) {
-      // On-time check-in: Update appointment status to 'arrived'
+      // Get the next queue number for today
+      const { data: queueNumberResult, error: queueNumberError } = await supabaseServer
+        .rpc('get_next_queue_number', { check_date: new Date().toISOString().split('T')[0] })
+
+      if (queueNumberError) {
+        console.error('Error getting next queue number:', queueNumberError)
+        return NextResponse.json({
+          success: false,
+          message: 'Failed to assign queue number',
+          error: queueNumberError.message
+        }, { status: 500 })
+      }
+
+      const queueNumber = queueNumberResult as number
+
+      // On-time check-in: Update appointment status to 'arrived' and assign queue number
       const { data: updatedAppointment, error: updateError } = await supabaseServer
         .from('appointments')
         .update({
           status: 'arrived',
+          queue_number: queueNumber,
           updated_at: checkInTime
         })
         .eq('id', appointment.id)
-        .select('id, ticket_id, scheduled_time, status')
+        .select('id, ticket_id, scheduled_time, status, queue_number')
         .single()
 
       if (updateError) {
@@ -187,6 +203,7 @@ export async function POST(request: NextRequest) {
           ticketId: updatedAppointment.ticket_id,
           status: updatedAppointment.status,
           scheduledTime: updatedAppointment.scheduled_time,
+          queueNumber: updatedAppointment.queue_number,
           user: {
             name: user.name,
             phone: user.phone,
@@ -208,6 +225,21 @@ export async function POST(request: NextRequest) {
       }, { status: 200 })
 
     } else {
+      // Get the next queue number for today
+      const { data: queueNumberResult, error: queueNumberError } = await supabaseServer
+        .rpc('get_next_queue_number', { check_date: new Date().toISOString().split('T')[0] })
+
+      if (queueNumberError) {
+        console.error('Error getting next queue number:', queueNumberError)
+        return NextResponse.json({
+          success: false,
+          message: 'Failed to assign queue number',
+          error: queueNumberError.message
+        }, { status: 500 })
+      }
+
+      const queueNumber = queueNumberResult as number
+
       // Late arrival: Create walk-in record and update appointment
       const { data: walkIn, error: walkInError } = await supabaseServer
         .from('walk_ins')
@@ -215,9 +247,10 @@ export async function POST(request: NextRequest) {
           user_id: appointment.user_id,
           check_in_time: checkInTime,
           status: 'pending',
+          queue_number: queueNumber,
           original_appointment_id: appointment.id
         })
-        .select('id, ticket_id, check_in_time, status')
+        .select('id, ticket_id, check_in_time, status, queue_number')
         .single()
 
       if (walkInError) {
@@ -254,6 +287,7 @@ export async function POST(request: NextRequest) {
           ticketId: walkIn.ticket_id,
           status: walkIn.status,
           checkInTime: walkIn.check_in_time,
+          queueNumber: walkIn.queue_number,
           originalAppointment: {
             ticketId: appointment.ticket_id,
             scheduledTime: appointment.scheduled_time
